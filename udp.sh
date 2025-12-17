@@ -992,7 +992,7 @@ if __name__ == "__main__":
 PY
 
 # Download index.html template
-curl -fsSL -o /etc/zivpn/templates/index.html "https://raw.githubusercontent.com/zivpn/maungthunya/main/templates/index.html"
+curl -fsSL -o /etc/zivpn/templates/index.html "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/templates/index.html"
 if [ $? -ne 0 ]; then
     say "${R}❌ Template download မအောင်မြင် - Fallback ထည့်နေပါတယ်...${Z}"
     # Create basic template
@@ -1090,7 +1090,7 @@ fi
 
 # ===== Download Telegram Bot from GitHub =====
 say "${Y}🤖 GitHub မှ Telegram Bot ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
-curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/zivpn/maungthunya/main/telegram/bot.py"
+curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/telegram/bot.py"
 if [ $? -ne 0 ]; then
   echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
   # Fallback bot code would go here
@@ -1098,10 +1098,10 @@ fi
 
 # ===== DOWNLOAD PROTECTION SYSTEM =====
 say "${Y}🛡️ Downloading protection system...${Z}"
-curl -fsSL -o /root/protection.py "https://raw.githubusercontent.com/zivpn/maungthunya/main/protection/protection.py" || {
+curl -fsSL -o /root/protection.py "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/protection/protection.py" || {
     echo -e "${Y}⚠️ Protection script download failed, using embedded method${Z}"
 }
-curl -fsSL -o /etc/zivpn/self_destruct.sh "https://raw.githubusercontent.com/zivpn/maungthunya/main/protection/self_destruct.sh" || {
+curl -fsSL -o /etc/zivpn/self_destruct.sh "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/protection/self_destruct.sh" || {
     echo -e "${Y}⚠️ Self-destruct script download failed${Z}"
 }
 chmod +x /root/protection.py /etc/zivpn/self_destruct.sh 2>/dev/null || true
