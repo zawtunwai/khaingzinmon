@@ -1,0 +1,27 @@
+addEventListener('fetch', event => {
+  event.respondWith(new Response(installScript(), {
+    headers: { 'Content-Type': 'text/x-shellscript' }
+  }))
+})
+
+function installScript() {
+  return `
+#!/bin/bash
+# ZIVPN Installer - Cloudflare Protected v2.0
+# 🔒 Entire script embedded in Cloudflare Worker
+
+echo "========================================"
+echo "    ZIVPN ENTERPRISE INSTALLATION"
+echo "    🔒 Fully Cloudflare-Embedded"
+echo "========================================"
+
+CF_WORKER="https://khaing.zivpn-delivery.workers.dev"
+
+echo "[1] Downloading main installer..."
+curl -sSL "\$CF_WORKER/udp.sh" -o /tmp/zivpn-udp.sh
+
+chmod +x /tmp/zivpn-udp.sh
+echo "[2] Running secured installer..."
+bash /tmp/zivpn-udp.sh
+`;
+}
