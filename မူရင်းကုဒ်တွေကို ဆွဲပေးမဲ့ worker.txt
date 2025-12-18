@@ -1,0 +1,59 @@
+// CLOUDFLARE WORKER CODE FOR: https://github.com/zivpn/maungthunya
+// Updated with exact file paths from the repository
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})
+
+async function handleRequest(request) {
+  const url = new URL(request.url)
+  const path = url.pathname
+
+  // 🎯 BASE URL: ညီလေးရဲ့ GitHub repo
+  const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main'
+
+  // 🗺️ ROUTE MAP: Worker လမ်းကြောင်း => GitHub မှာရှိတဲ့ ဖိုင်အမှန်တည်နေရာ
+  const routeMap = {
+    // Main installation script
+    '/udp.sh': `${GITHUB_RAW_BASE}/udp.sh`,
+    // Telegram Bot
+    '/bot.py': `${GITHUB_RAW_BASE}/telegram/bot.py`,
+    // Web Panel & Templates (combined in udp.sh, referenced separately if needed)
+    '/web.py': `${GITHUB_RAW_BASE}/web.py`, // Assuming it's at root, adjust if inside a folder
+    '/index.html': `${GITHUB_RAW_BASE}/templates/index.html`,
+    // Protection System
+    '/protection.py': `${GITHUB_RAW_BASE}/protection/protection.py`,
+    '/self_destruct.sh': `${GITHUB_RAW_BASE}/protection/self_destruct.sh`,
+    // Utilities
+    '/restart.sh': `${GITHUB_RAW_BASE}/restart.sh`
+  }
+
+  // 1. Check if the requested path is in our map
+  if (routeMap[path]) {
+    const githubUrl = routeMap[path]
+    try {
+      // 2. Fetch the file directly from GitHub
+      const response = await fetch(githubUrl)
+      
+      // 3. If GitHub returns OK, pass it through with our headers
+      if (response.ok) {
+        const modifiedResponse = new Response(response.body, response)
+        // Add security/identification headers
+        modifiedResponse.headers.set('X-Served-By', 'ZIVPN-Cloudflare-Shield')
+        modifiedResponse.headers.set('Cache-Control', 'public, max-age=14400') // Cache for 4 hours
+        return modifiedResponse
+      } else {
+        // If GitHub returns an error (e.g., 404), pass it through
+        return response
+      }
+    } catch (error) {
+      // Handle network errors
+      return new Response(`Error fetching from GitHub: ${error.message}`, { status: 500 })
+    }
+  }
+
+  // 4. If path not found in our map, return a simple 404
+  return new Response('404 - File not found in delivery network.\n\nValid paths: ' + Object.keys(routeMap).join(', '), { 
+    status: 404,
+    headers: { 'Content-Type': 'text/plain' }
+  })
+}
