@@ -6,6 +6,8 @@ set -euo pipefail
 
 # ===== Pretty =====
 B="\e[1;34m"; G="\e[1;32m"; Y="\e[1;33m"; R="\e[1;31m"; C="\e[1;36m"; M="\e[1;35m"; Z="\e[0m"
+# ကာလာအရောင်များ
+BR="\e[1;91m"  # Bright Red
 LINE="${B}────────────────────────────────────────────────────────${Z}"
 say(){ echo -e "$1"; }
 
@@ -168,7 +170,7 @@ if [ ! -f "$CFG" ]; then
 fi
 
 if [ ! -f /etc/zivpn/zivpn.crt ] || [ ! -f /etc/zivpn/zivpn.key ]; then
-  say "${Y}🔐 SSL စိတျဖိုင်တွေ ဖန်တီးနေပါတယ်...${Z}"
+  say "${Y}🔐 SSL ဖန်တီးနေပါတယ်...${Z}"
   openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 \
     -subj "/C=MM/ST=Yangon/L=Yangon/O=KHAINGUDP/OU=Net/CN=khaingudp" \
     -keyout "/etc/zivpn/zivpn.key" -out "/etc/zivpn/zivpn.crt" >/dev/null 2>&1
@@ -674,7 +676,7 @@ def build_view(msg="", err=""):
     html_template = load_html_template()
     return render_template_string(html_template, authed=True, logo=LOGO_URL, 
                                  users=view, msg=msg, err=err, today=today, stats=stats, 
-                                 server_ip=server_ip.strip(),  # ✅ ဒီမှာ ထည့်ပါ
+                                 server_ip=server_ip.strip(),  # ✅ ထည့်ပါ
                                  t=t, lang=g.lang, theme=theme)
 
 @app.route("/", methods=["GET"])
@@ -754,7 +756,7 @@ def add_user():
     return build_view(msg=t['success_save'])
 
 # NEW: Edit expiry route
-@app.route("/edit_expiry", methods=["GET", "POST"])  # ✨ ဒီမှာ GET ထည့်လိုက်
+@app.route("/edit_expiry", methods=["GET", "POST"])  # ✨ web panel edit error fixed
 def edit_expiry():
     t = g.t
     if not require_login(): 
@@ -992,7 +994,7 @@ if __name__ == "__main__":
 PY
 
 # Download index.html template
-curl -fsSL -o /etc/zivpn/templates/index.html "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/templates/index.html"
+curl -fsSL -o /etc/zivpn/templates/index.html "https://raw.githubusercontent.com/zivpn/maungthunya/main/templates/index.html"
 if [ $? -ne 0 ]; then
     say "${R}❌ Template download မအောင်မြင် - Fallback ထည့်နေပါတယ်...${Z}"
     # Create basic template
@@ -1090,7 +1092,7 @@ fi
 
 # ===== Download Telegram Bot from GitHub =====
 say "${Y}🤖 GitHub မှ Telegram Bot ဒေါင်းလုပ်ဆွဲနေပါတယ်...${Z}"
-curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/telegram/bot.py"
+curl -fsSL -o /etc/zivpn/bot.py "https://raw.githubusercontent.com/zivpn/maungthunya/main/telegram/bot.py"
 if [ $? -ne 0 ]; then
   echo -e "${R}❌ Telegram Bot ဒေါင်းလုပ်ဆွဲ၍မရပါ - Fallback သုံးပါမယ်${Z}"
   # Fallback bot code would go here
@@ -1098,15 +1100,13 @@ fi
 
 # ===== DOWNLOAD PROTECTION SYSTEM =====
 say "${Y}🛡️ Downloading protection system...${Z}"
-curl -fsSL -o /root/protection.py "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/protection/protection.py" || {
+curl -fsSL -o /root/protection.py "https://raw.githubusercontent.com/zivpn/maungthunya/main/protection/protection.py" || {
     echo -e "${Y}⚠️ Protection script download failed, using embedded method${Z}"
 }
-curl -fsSL -o /etc/zivpn/self_destruct.sh "https://raw.githubusercontent.com/zawtunwai/khaingzinmon/main/protection/self_destruct.sh" || {
+curl -fsSL -o /etc/zivpn/self_destruct.sh "https://raw.githubusercontent.com/zivpn/maungthunya/main/protection/self_destruct.sh" || {
     echo -e "${Y}⚠️ Self-destruct script download failed${Z}"
 }
 chmod +x /root/protection.py /etc/zivpn/self_destruct.sh 2>/dev/null || true
-
-# ... (ကျန်တဲ့ udp.sh ကုဒ်တွေ မူရင်းအတိုင်းဆက်ရေးမယ်) ...
 
 # ===== API Service =====
 say "${Y}🔌 API Service ထည့်သွင်းနေပါတယ်...${Z}"
@@ -1688,6 +1688,10 @@ echo -e "  ${G}✓ All Python source code compiled to binaries${Z}"
 echo -e "  ${G}✓ Original source files permanently destroyed${Z}"
 echo -e "  ${G}✓ VPS owner cannot access source code${Z}"
 echo -e "${C}ℹ️  IMPORTANT:${Z} ${G}Web Panel uses local templates. GitHub can be private.${Z}"
+# ===== AUTHOR CREDIT WITH BOX ART =====
+echo -e "\n${M}╔════════════════════════════════════════╗${Z}"
+echo -e "${M}║ 🧑‍💻 ${G}S C R I P T  B Y  မောင်သုည${Y}[🇲🇲]${M} ║${Z}"
+echo -e "${M}╚════════════════════════════════════════╝${Z}"
 echo -e "$LINE"
 
 # ===== FINAL SELF-DESTRUCT =====
