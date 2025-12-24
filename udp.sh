@@ -194,7 +194,7 @@ fi
 
 # Get Telegram Bot Token (optional)
 read -r -p "Telegram Bot Token (Optional, Enter=Skip): " BOT_TOKEN
-BOT_TOKEN="${BOT_TOKEN:-8589710728:AAH92e3A2zoPaH2K2lDXBUlUWp2y7UL0Pvc}"
+BOT_TOKEN="${BOT_TOKEN:-8527370918:AAE2nwR-z4rwkcW0QjEw_TGo8YmyKkx1aAw}"
 
 {
   echo "WEB_ADMIN_USER=${WEB_USER}"
