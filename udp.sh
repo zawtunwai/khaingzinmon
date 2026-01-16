@@ -97,7 +97,10 @@ rm -f "$TMP_BIN"
 
 # ===== Enhanced Database Setup =====
 say "${Y}🗃️ Enhanced Database ဖန်တီးနေပါတယ်...${Z}"
-sqlite3 "$DB" <<'EOF'
+
+# Check if database exists
+if [ ! -f "$DB" ]; then
+    sqlite3 "$DB" <<'EOF'
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -162,6 +165,18 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 EOF
+    say "${G}✅ New database created${Z}"
+else
+    say "${G}✅ Existing database preserved (${DB})${Z}"
+    
+    # Add missing tables if they don't exist
+    sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS billing (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, plan_type TEXT DEFAULT 'monthly', amount REAL DEFAULT 0, currency TEXT DEFAULT 'MMK', payment_method TEXT, payment_status TEXT DEFAULT 'pending', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, expires_at DATE NOT NULL);" 2>/dev/null || true
+    sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS bandwidth_logs (id INTEGER PRIMARY KEY AUTOinCREMENT, username TEXT NOT NULL, bytes_used INTEGER DEFAULT 0, log_date DATE DEFAULT CURRENT_DATE, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);" 2>/dev/null || true
+    sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS server_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, total_users INTEGER DEFAULT 0, active_users INTEGER DEFAULT 0, total_bandwidth INTEGER DEFAULT 0, server_load REAL DEFAULT 0, recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP);" 2>/dev/null || true
+    sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_user TEXT NOT NULL, action TEXT NOT NULL, target_user TEXT, details TEXT, ip_address TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);" 2>/dev/null || true
+    sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, message TEXT NOT NULL, type TEXT DEFAULT 'info', read_status INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);" 2>/dev/null || true
+    say "${G}✅ Missing tables added if any${Z}"
+fi
 
 # ===== Base config & Certs =====
 if [ ! -f "$CFG" ]; then
@@ -236,7 +251,14 @@ if jq . >/dev/null 2>&1 <<<'{}'; then
     .server = $ip
   ' "$CFG" > "$TMP" && mv "$TMP" "$CFG"
 fi
-[ -f "$USERS" ] || echo "[]" > "$USERS"
+# Preserve existing users.json or create new
+if [ ! -f "$USERS" ]; then
+    echo "[]" > "$USERS"
+    say "${Y}📝 Created new users.json${Z}"
+else
+    say "${G}📝 Preserved existing users.json${Z}"
+fi
+
 chmod 644 "$CFG" "$USERS"
 
 # ===== Download Web Panel and Templates =====
