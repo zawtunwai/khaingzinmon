@@ -758,7 +758,7 @@ def users_command(update, context):
         
     except Exception as e:
         logger.error(f"Error getting users: {e}")
-        update.message.reply_text("❌ Error retrieving users list")
+        update.message.reply_text(f"❌ Database Error: {str(e)}")
     finally:
         db.close()
 
