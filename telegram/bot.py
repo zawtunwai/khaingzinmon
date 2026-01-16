@@ -718,11 +718,17 @@ def users_command(update, context):
             db.close()
             return
         
-        # Get all users data (no limit)
+        # Get all users data with expiry check
         users = db.execute('''
             SELECT username, password, status, expires, bandwidth_used, concurrent_conn
             FROM users
-            ORDER BY created_at DESC
+            ORDER BY 
+                CASE 
+                    WHEN status = 'active' AND (expires IS NULL OR expires >= date('now')) THEN 1
+                    WHEN status = 'active' AND expires < date('now') THEN 2
+                    ELSE 3
+                END,
+                username ASC
         ''').fetchall()
         
         db.close()
@@ -730,17 +736,17 @@ def users_command(update, context):
         server_ip = get_server_ip()
         
         # Configuration
-        USERS_PER_CHUNK = 15  # 15 users per message (safe limit)
+        USERS_PER_CHUNK = 20  # 20 users per message
         total_chunks = (total_users + USERS_PER_CHUNK - 1) // USERS_PER_CHUNK
         
         # Send initial summary
         update.message.reply_text(
-            f"📊 *ZIVPN Users Database*\n"
-            f"🌐 Server: `{server_ip}`\n"
-            f"👥 Total Users: *{total_users}*\n"
-            f"📤 Delivery: *{total_chunks} parts*\n"
+            f"<b>📊 ZIVPN Users Database</b>\n"
+            f"🌐 Server: <code>{server_ip}</code>\n"
+            f"👥 Total Users: <b>{total_users}</b>\n"
+            f"📤 Delivery: <b>{total_chunks} parts</b>\n"
             f"⏳ Processing...",
-            parse_mode='Markdown'
+            parse_mode='HTML'
         )
         
         # Send users in chunks
@@ -750,37 +756,57 @@ def users_command(update, context):
             chunk = users[start_idx:end_idx]
             
             # Build chunk message
-            chunk_message = f"**PART {chunk_index + 1}/{total_chunks}**\n"
-            chunk_message += f"`Users {start_idx + 1}-{end_idx}`\n\n"
+            chunk_message = f"<b>PART {chunk_index + 1}/{total_chunks}</b>\n"
+            chunk_message += f"<code>Users {start_idx + 1}-{end_idx}</code>\n\n"
             
             for user in chunk:
-                # Status indicator
-                if user['status'] == 'active':
-                    status_indicator = "🟢 ACTIVE"
+                # Check if user is actually active (not expired)
+                from datetime import datetime
+                is_expired = False
+                is_active_account = False
+                
+                if user['expires']:
+                    try:
+                        exp_date = datetime.strptime(user['expires'], '%Y-%m-%d')
+                        today = datetime.now().date()
+                        is_expired = exp_date.date() < today
+                    except:
+                        pass
+                
+                # Determine user status
+                if user['status'] == 'active' and not is_expired:
+                    status_icon = "🟢"
+                    status_text = "ACTIVE"
+                    is_active_account = True
+                elif user['status'] == 'active' and is_expired:
+                    status_icon = "🔴"
+                    status_text = "EXPIRED"
                 elif user['status'] == 'suspended':
-                    status_indicator = "🟡 SUSPENDED"
+                    status_icon = "🟡"
+                    status_text = "SUSPENDED"
                 elif user['status'] == 'banned':
-                    status_indicator = "🔴 BANNED"
+                    status_icon = "🔴"
+                    status_text = "BANNED"
                 else:
-                    status_indicator = "⚪ " + user['status'].upper()
+                    status_icon = "⚪"
+                    status_text = user['status'].upper()
                 
                 # Bandwidth formatting
                 bandwidth_used = format_bytes(user['bandwidth_used'] or 0)
                 
-                # User info
-                chunk_message += f"**{user['username']}**\n"
-                chunk_message += f"• Password: `{user['password']}`\n"
-                chunk_message += f"• Status: {status_indicator}\n"
+                # User info with clickable username
+                chunk_message += f"{status_icon} <code>{user['username']}</code>\n"
+                chunk_message += f"• Password: <code>{user['password']}</code>\n"
+                chunk_message += f"• Status: {status_text}\n"
                 chunk_message += f"• Bandwidth: {bandwidth_used}\n"
                 chunk_message += f"• Connections: {user['concurrent_conn']}\n"
                 
                 if user['expires']:
-                    # Calculate days remaining
                     try:
-                        from datetime import datetime
                         exp_date = datetime.strptime(user['expires'], '%Y-%m-%d')
                         today = datetime.now()
                         days_left = (exp_date - today).days
+                        
                         if days_left > 0:
                             expires_info = f"⏰ Expires: {user['expires']} ({days_left} days)"
                         elif days_left == 0:
@@ -792,44 +818,45 @@ def users_command(update, context):
                     
                     chunk_message += f"• {expires_info}\n"
                 
-                chunk_message += "─" * 24 + "\n"
+                chunk_message += "─" * 30 + "\n"
             
             # Send the chunk
-            update.message.reply_text(chunk_message, parse_mode='Markdown')
+            update.message.reply_text(chunk_message, parse_mode='HTML')
             
             # Rate limiting: small delay between chunks
             if chunk_index < total_chunks - 1:
                 import time
-                time.sleep(0.5)
+                time.sleep(0.3)
         
         # Send completion message
         completion_msg = (
-            f"✅ **USER LIST COMPLETED**\n\n"
-            f"📊 **Statistics:**\n"
+            f"<b>✅ USER LIST COMPLETED</b>\n\n"
+            f"<b>📊 Statistics:</b>\n"
             f"• Total Users: {total_users}\n"
             f"• Chunks Sent: {total_chunks}\n"
-            f"• Server: `{server_ip}`\n\n"
-            f"💡 **Tips:**\n"
-            f"• Use `/myinfo username` for detailed info\n"
-            f"• Use `/stats` for server statistics\n"
-            f"• Use `/admin` for admin panel"
+            f"• Server: <code>{server_ip}</code>\n\n"
+            f"<b>💡 Tips:</b>\n"
+            f"• Click username to copy\n"
+            f"• Use <code>/myinfo username</code> for details\n"
+            f"• Use <code>/stats</code> for server stats\n"
+            f"• Use <code>/admin</code> for admin panel"
         )
-        update.message.reply_text(completion_msg, parse_mode='Markdown')
+        update.message.reply_text(completion_msg, parse_mode='HTML')
         
         logger.info(f"✅ /users command: {total_users} users sent in {total_chunks} chunks")
         
     except Exception as e:
         logger.error(f"❌ Error in /users command: {e}")
         error_msg = (
-            f"❌ **DATABASE ERROR**\n\n"
-            f"**Error Details:**\n"
-            f"```{str(e)[:200]}```\n\n"
-            f"**Troubleshooting:**\n"
+            f"<b>❌ DATABASE ERROR</b>\n\n"
+            f"<b>Error Details:</b>\n"
+            f"<code>{str(e)[:200]}</code>\n\n"
+            f"<b>Troubleshooting:</b>\n"
             f"1. Check database connection\n"
             f"2. Verify database file exists\n"
-            f"3. Run `/stats` to test connection"
+            f"3. Run <code>/stats</code> to test connection"
         )
-        update.message.reply_text(error_msg, parse_mode='Markdown')
+        update.message.reply_text(error_msg, parse_mode='HTML')
 
 def myinfo_command(update, context):
     """Get user information with password - ADMIN ONLY"""
