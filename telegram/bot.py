@@ -818,7 +818,7 @@ def users_command(update, context):
                     
                     chunk_message += f"• {expires_info}\n"
                 
-                chunk_message += "─" * 30 + "\n"
+                chunk_message += "─" * 24 + "\n"
             
             # Send the chunk
             update.message.reply_text(chunk_message, parse_mode='HTML')
