@@ -222,14 +222,28 @@ BOT_TOKEN="${BOT_TOKEN:-8170501118:AAFer19VpccpEp7hHWvFuU8Rj6E2Ck_ufuo}"
 chmod 600 "$ENVF"
 
 # ===== Ask initial VPN passwords =====
-say "${G}🔏 VPN Password List (eg: maungthunya,alice,pass1)${Z}"
-read -r -p "Passwords (Enter=zi): " input_pw
-if [ -z "${input_pw:-}" ]; then
-  PW_LIST='["zi"]'
+# ပထမဆုံး install လုပ်တဲ့အချိန်မှာပဲ password မေးမယ်
+# Re-run လုပ်ရင် အရင်ကဟာကို မဖျက်ဘူး
+if [ ! -f "$CFG" ] || [ ! -s "$CFG" ]; then
+  say "${G}🔏 VPN Password List (eg: maungthunya,alice,pass1)${Z}"
+  say "${Y}Note: Only required for FIRST installation${Z}"
+  read -r -p "Passwords (Enter=zi): " input_pw
+  if [ -z "${input_pw:-}" ]; then
+    PW_LIST='["zi"]'
+  else
+    PW_LIST=$(echo "$input_pw" | awk -F',' '{
+      printf("["); for(i=1;i<=NF;i++){gsub(/^ *| *$/,"",$i); printf("%s\"%s\"", (i>1?",":""), $i)}; printf("]")
+    }')
+  fi
 else
-  PW_LIST=$(echo "$input_pw" | awk -F',' '{
-    printf("["); for(i=1;i<=NF;i++){gsub(/^ *| *$/,"",$i); printf("%s\"%s\"", (i>1?",":""), $i)}; printf("]")
-  }')
+  # Config file exists, preserve existing passwords
+  say "${G}✅ Existing config found, preserving current passwords${Z}"
+  # Extract existing passwords from config
+  if command -v jq >/dev/null 2>&1; then
+    PW_LIST=$(jq -r '.auth.config | tostring' "$CFG" 2>/dev/null || echo '["zi"]')
+  else
+    PW_LIST='["zi"]'
+  fi
 fi
 
 # Get Server IP
