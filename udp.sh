@@ -1255,24 +1255,49 @@ def write_json_atomic(path, data):
         except: pass
 
 def sync_config_passwords():
-    # Only sync passwords for non-suspended/non-expired users
+    """Sync ALL passwords from database to ZIVPN config - PRESERVE EVERYTHING"""
     db = get_db()
-    active_users = db.execute('''
-        SELECT password FROM users 
-        WHERE status = "active" AND password IS NOT NULL AND password != "" 
-              AND (expires IS NULL OR expires >= CURRENT_DATE)
-    ''').fetchall()
-    db.close()
-    
-    users_pw = sorted({str(u["password"]) for u in active_users})
-    
-    cfg=read_json(CONFIG_FILE,{})
-    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
-    cfg["auth"]["mode"]="passwords"
-    cfg["auth"]["config"]=users_pw
-    
-    write_json_atomic(CONFIG_FILE,cfg)
-    subprocess.run("systemctl restart zivpn.service", shell=True)
+    try:
+        # Get ALL users' passwords (active, expired, suspended, banned - EVERYTHING)
+        all_users = db.execute('''
+            SELECT password FROM users 
+            WHERE password IS NOT NULL AND password != ""
+        ''').fetchall()
+        
+        # Extract unique passwords from database
+        db_passwords = sorted({str(u["password"]) for u in all_users})
+        
+        # Read existing config file
+        cfg = read_json(CONFIG_FILE, {})
+        if not isinstance(cfg.get("auth"), dict): 
+            cfg["auth"] = {}
+        
+        # Get existing passwords from config
+        existing_passwords = cfg["auth"].get("config", [])
+        if not isinstance(existing_passwords, list):
+            existing_passwords = []
+        
+        # Merge: database passwords + existing config passwords (NO DUPLICATES)
+        all_passwords_set = set(db_passwords + existing_passwords)
+        combined_passwords = sorted(list(all_passwords_set))
+        
+        # Update config
+        cfg["auth"]["mode"] = "passwords"
+        cfg["auth"]["config"] = combined_passwords
+        
+        write_json_atomic(CONFIG_FILE, cfg)
+        
+        # Log the action
+        print(f"✅ Config sync: {len(combined_passwords)} passwords preserved "
+              f"({len(db_passwords)} from DB, {len(existing_passwords)} from config)")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Config sync error: {e}")
+        return False
+    finally:
+        db.close()
 
 def daily_cleanup():
     db = get_db()
