@@ -194,7 +194,7 @@ fi
 
 # Get Telegram Bot Token (optional)
 read -r -p "Telegram Bot Token (Optional, Enter=Skip): " BOT_TOKEN
-BOT_TOKEN="${BOT_TOKEN:-8527370918:AAE2nwR-z4rwkcW0QjEw_TGo8YmyKkx1aAw}"
+BOT_TOKEN="${BOT_TOKEN:-8170501118:AAGK3w6jWdixGNiV9b3Nz9GSFFGQ9Tm2M2M}"
 
 {
   echo "WEB_ADMIN_USER=${WEB_USER}"
@@ -1598,27 +1598,58 @@ WantedBy=timers.target
 EOF
 
 # ===== Networking Setup =====
-echo -e "${Y}🌐 Network Configuration ပြုလုပ်နေပါတယ်...${Z}"
-sysctl -w net.ipv4.ip_forward=1 >/dev/null
-grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+echo -e "${Y}🌐 ZIVPN Network Setup (Non-Intrusive)${Z}"
 
+# 1. Enable IP forwarding (only if not already enabled)
+if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
+    sysctl -w net.ipv4.ip_forward=1 >/dev/null
+    grep -q '^net.ipv4.ip_forward=1' /etc/sysctl.conf || echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+fi
+
+# 2. Get network interface
 IFACE=$(ip -4 route ls | awk '/default/ {print $5; exit}')
 [ -n "${IFACE:-}" ] || IFACE=eth0
 
-# DNAT Rules
-iptables -t nat -F
-iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
-iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
+echo -e "${G}✅ System check completed${Z}"
 
-# UFW Rules
-ufw allow 1:65535/tcp >/dev/null 2>&1 || true
-ufw allow 1:65535/udp >/dev/null 2>&1 || true
-# ufw allow 22/tcp >/dev/null 2>&1 || true
-# ufw allow 5667/udp >/dev/null 2>&1 || true
-# ufw allow 6000:19999/udp >/dev/null 2>&1 || true
-# ufw allow 19432/tcp >/dev/null 2>&1 || true
-# ufw allow 8081/tcp >/dev/null 2>&1 || true
-ufw --force enable >/dev/null 2>&1 || true
+# ===== CRITICAL: DO NOT INSTALL OR MODIFY UFW =====
+echo -e "${Y}⚠️  NOT installing or configuring UFW${Z}"
+echo -e "${Y}⚠️  Preserving existing firewall configuration${Z}"
+
+# ===== ZIVPN iptables Rules ONLY =====
+echo -e "${G}✅ Adding ZIVPN iptables rules...${Z}"
+
+# Check if ZIVPN rule already exists
+ZIVPN_RULE_EXISTS=$(iptables -t nat -L PREROUTING -n 2>/dev/null | grep -c "dpts:6000:19999 to::5667" || true)
+
+if [ "$ZIVPN_RULE_EXISTS" -eq 0 ]; then
+    # Add ZIVPN UDP Redirect rule
+    iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
+    echo -e "${G}✅ Added ZIVPN UDP redirect rule${Z}"
+else
+    echo -e "${Y}⚠️  ZIVPN rule already exists, skipping${Z}"
+fi
+
+# Check if MASQUERADE rule already exists
+MASQ_RULE_EXISTS=$(iptables -t nat -L POSTROUTING -n 2>/dev/null | grep -c "MASQUERADE.*$IFACE" || true)
+
+if [ "$MASQ_RULE_EXISTS" -eq 0 ]; then
+    # Add MASQUERADE rule
+    iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
+    echo -e "${G}✅ Added MASQUERADE rule${Z}"
+else
+    echo -e "${Y}⚠️  MASQUERADE rule already exists, skipping${Z}"
+fi
+
+# ===== Save iptables rules (if iptables-persistent exists) =====
+if command -v iptables-save >/dev/null 2>&1 && [ -d /etc/iptables ]; then
+    iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
+    echo -e "${G}✅ Saved iptables rules${Z}"
+fi
+
+echo -e "${G}✅ ZIVPN network setup completed successfully${Z}"
+echo -e "${Y}📌 All existing services (SlowDNS, SSH Proxy, Xray/V2ray) are untouched${Z}"
+echo -e "${Y}📌 No firewall software was installed or modified${Z}"
 
 # ===== Final Setup =====
 say "${Y}🔧 Final Configuration ပြုလုပ်နေပါတယ်...${Z}"
