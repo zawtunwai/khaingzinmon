@@ -239,27 +239,101 @@ if [ -z "${SERVER_IP:-}" ]; then
 fi
 
 # ===== Update config.json =====
+# Preserve existing passwords when re-running script
+if [ -f "$CFG" ] && [ -s "$CFG" ]; then
+    # Config exists, check if it has passwords
+    if command -v jq >/dev/null 2>&1; then
+        EXISTING_PASSWORDS=$(jq -r '.auth.config' "$CFG" 2>/dev/null || echo "[]")
+        if [ "$EXISTING_PASSWORDS" != "null" ] && [ "$EXISTING_PASSWORDS" != "[]" ]; then
+            say "${G}✅ Preserving existing VPN passwords from config${Z}"
+            # Use existing passwords instead of new ones
+            PW_LIST="$EXISTING_PASSWORDS"
+        else
+            say "${Y}📝 No existing passwords found in config${Z}"
+        fi
+    fi
+fi
+
 if jq . >/dev/null 2>&1 <<<'{}'; then
   TMP=$(mktemp)
-  jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" '
-    .auth.mode = "passwords" |
-    .auth.config = $pw |
-    .listen = (."listen" // ":5667") |
-    .cert = "/etc/zivpn/zivpn.crt" |
-    .key  = "/etc/zivpn/zivpn.key" |
-    .obfs = (."obfs" // "zivpn") |
-    .server = $ip
-  ' "$CFG" > "$TMP" && mv "$TMP" "$CFG"
+  # Smart config update - FIXED SYNTAX
+  if [ -f "$CFG" ] && [ -s "$CFG" ]; then
+    # Config exists, update it
+    jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" '
+      .auth.mode = (.auth.mode // "passwords") |
+      .auth.config = $pw |
+      .listen = (.listen // ":5667") |
+      .cert = (.cert // "/etc/zivpn/zivpn.crt") |
+      .key = (.key // "/etc/zivpn/zivpn.key") |
+      .obfs = (.obfs // "zivpn") |
+      .server = (.server // $ip)
+    ' "$CFG" > "$TMP" && mv "$TMP" "$CFG"
+  else
+    # Config doesn't exist, create new
+    jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" -n '
+      {
+        "auth": {
+          "mode": "passwords",
+          "config": $pw
+        },
+        "listen": ":5667",
+        "cert": "/etc/zivpn/zivpn.crt",
+        "key": "/etc/zivpn/zivpn.key",
+        "obfs": "zivpn",
+        "server": $ip
+      }
+    ' > "$TMP" && mv "$TMP" "$CFG"
+  fi
+  
+  # Show password count
+  if command -v jq >/dev/null 2>&1; then
+    PASSWORD_COUNT=$(jq -r '.auth.config | length' "$CFG" 2>/dev/null || echo "0")
+    say "${G}📊 VPN passwords in config: $PASSWORD_COUNT${Z}"
+  fi
+else
+  # Fallback if jq not available
+  say "${Y}⚠️ jq not available, using simple config${Z}"
+  cat > "$CFG" << EOF
+{
+  "auth": {
+    "mode": "passwords",
+    "config": $PW_LIST
+  },
+  "listen": ":5667",
+  "cert": "/etc/zivpn/zivpn.crt",
+  "key": "/etc/zivpn/zivpn.key",
+  "obfs": "zivpn",
+  "server": "$SERVER_IP"
+}
+EOF
 fi
-# Preserve existing users.json or create new
+
+# Preserve existing users.json or create new - NEVER OVERWRITE
 if [ ! -f "$USERS" ]; then
     echo "[]" > "$USERS"
     say "${Y}📝 Created new users.json${Z}"
 else
-    say "${G}📝 Preserved existing users.json${Z}"
+    # Check if users.json has data
+    if [ -s "$USERS" ]; then
+        if command -v jq >/dev/null 2>&1; then
+            USER_COUNT=$(jq -r 'length' "$USERS" 2>/dev/null || echo "0")
+            say "${G}📝 Preserved existing users.json ($USER_COUNT users)${Z}"
+        else
+            say "${G}📝 Preserved existing users.json${Z}"
+        fi
+    else
+        say "${Y}📝 Preserved empty users.json${Z}"
+    fi
 fi
 
-chmod 644 "$CFG" "$USERS"
+# Safe permissions
+chmod 600 "$CFG" 2>/dev/null || chmod 644 "$CFG"
+chmod 644 "$USERS" 2>/dev/null || true
+
+# Backup config for safety
+CONFIG_BACKUP="/etc/zivpn/config.backup.$(date +%Y%m%d_%H%M%S).json"
+cp "$CFG" "$CONFIG_BACKUP" 2>/dev/null || true
+say "${G}💾 Config backed up to: $CONFIG_BACKUP${Z}"
 
 # ===== Download Web Panel and Templates =====
 say "${Y}🌐 Web Panel နှင့် Templates များ ထည့်သွင်းနေပါတယ်...${Z}"
