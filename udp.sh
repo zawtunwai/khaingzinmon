@@ -222,28 +222,14 @@ BOT_TOKEN="${BOT_TOKEN:-8170501118:AAFer19VpccpEp7hHWvFuU8Rj6E2Ck_ufuo}"
 chmod 600 "$ENVF"
 
 # ===== Ask initial VPN passwords =====
-# ပထမဆုံး install လုပ်တဲ့အချိန်မှာပဲ password မေးမယ်
-# Re-run လုပ်ရင် အရင်ကဟာကို မဖျက်ဘူး
-if [ ! -f "$CFG" ] || [ ! -s "$CFG" ]; then
-  say "${G}🔏 VPN Password List (eg: maungthunya,alice,pass1)${Z}"
-  say "${Y}Note: Only required for FIRST installation${Z}"
-  read -r -p "Passwords (Enter=zi): " input_pw
-  if [ -z "${input_pw:-}" ]; then
-    PW_LIST='["zi"]'
-  else
-    PW_LIST=$(echo "$input_pw" | awk -F',' '{
-      printf("["); for(i=1;i<=NF;i++){gsub(/^ *| *$/,"",$i); printf("%s\"%s\"", (i>1?",":""), $i)}; printf("]")
-    }')
-  fi
+say "${G}🔏 VPN Password List (eg: maungthunya,alice,pass1)${Z}"
+read -r -p "Passwords (Enter=zi): " input_pw
+if [ -z "${input_pw:-}" ]; then
+  PW_LIST='["zi"]'
 else
-  # Config file exists, preserve existing passwords
-  say "${G}✅ Existing config found, preserving current passwords${Z}"
-  # Extract existing passwords from config
-  if command -v jq >/dev/null 2>&1; then
-    PW_LIST=$(jq -r '.auth.config | tostring' "$CFG" 2>/dev/null || echo '["zi"]')
-  else
-    PW_LIST='["zi"]'
-  fi
+  PW_LIST=$(echo "$input_pw" | awk -F',' '{
+    printf("["); for(i=1;i<=NF;i++){gsub(/^ *| *$/,"",$i); printf("%s\"%s\"", (i>1?",":""), $i)}; printf("]")
+  }')
 fi
 
 # Get Server IP
@@ -253,101 +239,27 @@ if [ -z "${SERVER_IP:-}" ]; then
 fi
 
 # ===== Update config.json =====
-# Preserve existing passwords when re-running script
-if [ -f "$CFG" ] && [ -s "$CFG" ]; then
-    # Config exists, check if it has passwords
-    if command -v jq >/dev/null 2>&1; then
-        EXISTING_PASSWORDS=$(jq -r '.auth.config' "$CFG" 2>/dev/null || echo "[]")
-        if [ "$EXISTING_PASSWORDS" != "null" ] && [ "$EXISTING_PASSWORDS" != "[]" ]; then
-            say "${G}✅ Preserving existing VPN passwords from config${Z}"
-            # Use existing passwords instead of new ones
-            PW_LIST="$EXISTING_PASSWORDS"
-        else
-            say "${Y}📝 No existing passwords found in config${Z}"
-        fi
-    fi
-fi
-
 if jq . >/dev/null 2>&1 <<<'{}'; then
   TMP=$(mktemp)
-  # Smart config update - FIXED SYNTAX
-  if [ -f "$CFG" ] && [ -s "$CFG" ]; then
-    # Config exists, update it
-    jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" '
-      .auth.mode = (.auth.mode // "passwords") |
-      .auth.config = $pw |
-      .listen = (.listen // ":5667") |
-      .cert = (.cert // "/etc/zivpn/zivpn.crt") |
-      .key = (.key // "/etc/zivpn/zivpn.key") |
-      .obfs = (.obfs // "zivpn") |
-      .server = (.server // $ip)
-    ' "$CFG" > "$TMP" && mv "$TMP" "$CFG"
-  else
-    # Config doesn't exist, create new
-    jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" -n '
-      {
-        "auth": {
-          "mode": "passwords",
-          "config": $pw
-        },
-        "listen": ":5667",
-        "cert": "/etc/zivpn/zivpn.crt",
-        "key": "/etc/zivpn/zivpn.key",
-        "obfs": "zivpn",
-        "server": $ip
-      }
-    ' > "$TMP" && mv "$TMP" "$CFG"
-  fi
-  
-  # Show password count
-  if command -v jq >/dev/null 2>&1; then
-    PASSWORD_COUNT=$(jq -r '.auth.config | length' "$CFG" 2>/dev/null || echo "0")
-    say "${G}📊 VPN passwords in config: $PASSWORD_COUNT${Z}"
-  fi
-else
-  # Fallback if jq not available
-  say "${Y}⚠️ jq not available, using simple config${Z}"
-  cat > "$CFG" << EOF
-{
-  "auth": {
-    "mode": "passwords",
-    "config": $PW_LIST
-  },
-  "listen": ":5667",
-  "cert": "/etc/zivpn/zivpn.crt",
-  "key": "/etc/zivpn/zivpn.key",
-  "obfs": "zivpn",
-  "server": "$SERVER_IP"
-}
-EOF
+  jq --argjson pw "$PW_LIST" --arg ip "$SERVER_IP" '
+    .auth.mode = "passwords" |
+    .auth.config = $pw |
+    .listen = (."listen" // ":5667") |
+    .cert = "/etc/zivpn/zivpn.crt" |
+    .key  = "/etc/zivpn/zivpn.key" |
+    .obfs = (."obfs" // "zivpn") |
+    .server = $ip
+  ' "$CFG" > "$TMP" && mv "$TMP" "$CFG"
 fi
-
-# Preserve existing users.json or create new - NEVER OVERWRITE
+# Preserve existing users.json or create new
 if [ ! -f "$USERS" ]; then
     echo "[]" > "$USERS"
     say "${Y}📝 Created new users.json${Z}"
 else
-    # Check if users.json has data
-    if [ -s "$USERS" ]; then
-        if command -v jq >/dev/null 2>&1; then
-            USER_COUNT=$(jq -r 'length' "$USERS" 2>/dev/null || echo "0")
-            say "${G}📝 Preserved existing users.json ($USER_COUNT users)${Z}"
-        else
-            say "${G}📝 Preserved existing users.json${Z}"
-        fi
-    else
-        say "${Y}📝 Preserved empty users.json${Z}"
-    fi
+    say "${G}📝 Preserved existing users.json${Z}"
 fi
 
-# Safe permissions
-chmod 600 "$CFG" 2>/dev/null || chmod 644 "$CFG"
-chmod 644 "$USERS" 2>/dev/null || true
-
-# Backup config for safety
-CONFIG_BACKUP="/etc/zivpn/config.backup.$(date +%Y%m%d_%H%M%S).json"
-cp "$CFG" "$CONFIG_BACKUP" 2>/dev/null || true
-say "${G}💾 Config backed up to: $CONFIG_BACKUP${Z}"
+chmod 644 "$CFG" "$USERS"
 
 # ===== Download Web Panel and Templates =====
 say "${Y}🌐 Web Panel နှင့် Templates များ ထည့်သွင်းနေပါတယ်...${Z}"
@@ -1099,7 +1011,7 @@ def update_user():
     return jsonify({"ok": False, "err": "Invalid data"})
 
 if __name__ == "__main__":
-    web_port = int(os.environ.get("WEB_PORT", "19623"))
+    web_port = int(os.environ.get("WEB_PORT", "19432"))
     app.run(host="0.0.0.0", port=web_port)
 PY
 
@@ -1329,49 +1241,24 @@ def write_json_atomic(path, data):
         except: pass
 
 def sync_config_passwords():
-    """Sync ALL passwords from database to ZIVPN config - PRESERVE EVERYTHING"""
+    # Only sync passwords for non-suspended/non-expired users
     db = get_db()
-    try:
-        # Get ALL users' passwords (active, expired, suspended, banned - EVERYTHING)
-        all_users = db.execute('''
-            SELECT password FROM users 
-            WHERE password IS NOT NULL AND password != ""
-        ''').fetchall()
-        
-        # Extract unique passwords from database
-        db_passwords = sorted({str(u["password"]) for u in all_users})
-        
-        # Read existing config file
-        cfg = read_json(CONFIG_FILE, {})
-        if not isinstance(cfg.get("auth"), dict): 
-            cfg["auth"] = {}
-        
-        # Get existing passwords from config
-        existing_passwords = cfg["auth"].get("config", [])
-        if not isinstance(existing_passwords, list):
-            existing_passwords = []
-        
-        # Merge: database passwords + existing config passwords (NO DUPLICATES)
-        all_passwords_set = set(db_passwords + existing_passwords)
-        combined_passwords = sorted(list(all_passwords_set))
-        
-        # Update config
-        cfg["auth"]["mode"] = "passwords"
-        cfg["auth"]["config"] = combined_passwords
-        
-        write_json_atomic(CONFIG_FILE, cfg)
-        
-        # Log the action
-        print(f"✅ Config sync: {len(combined_passwords)} passwords preserved "
-              f"({len(db_passwords)} from DB, {len(existing_passwords)} from config)")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Config sync error: {e}")
-        return False
-    finally:
-        db.close()
+    active_users = db.execute('''
+        SELECT password FROM users 
+        WHERE status = "active" AND password IS NOT NULL AND password != "" 
+              AND (expires IS NULL OR expires >= CURRENT_DATE)
+    ''').fetchall()
+    db.close()
+    
+    users_pw = sorted({str(u["password"]) for u in active_users})
+    
+    cfg=read_json(CONFIG_FILE,{})
+    if not isinstance(cfg.get("auth"),dict): cfg["auth"]={}
+    cfg["auth"]["mode"]="passwords"
+    cfg["auth"]["config"]=users_pw
+    
+    write_json_atomic(CONFIG_FILE,cfg)
+    subprocess.run("systemctl restart zivpn.service", shell=True)
 
 def daily_cleanup():
     db = get_db()
@@ -1841,7 +1728,7 @@ chmod 600 /etc/zivpn/* 2>/dev/null || true
 IP=$(hostname -I | awk '{print $1}')
 echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Completed!${Z}"
 echo -e "${C}🔒 SOURCE CODE PROTECTION: ${G}ACTIVATED${Z}"
-echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$IP:19623${Z}"
+echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$IP:19432${Z}"
 echo -e "\n${G}🔐 LOGIN CREDENTIALS${Z}"
 echo -e "  ${Y}• Username:${Z} ${Y}$WEB_USER${Z}"
 echo -e "  ${Y}• Password:${Z} ${Y}$WEB_PASS${Z}"
