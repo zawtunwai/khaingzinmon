@@ -1015,20 +1015,20 @@ tr:hover {
                     </td>
                     <td>
                         <div class="action-btns">
-                            <button class="action-btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            <button class="action-btn btn-primary" onclick="editUser('{{u.user}}')" title="Edit Password">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        <button class="action-btn btn-danger" onclick="confirmDelete('{{u.user}}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="action-btn btn-primary" onclick="editUser('{{u.user}}')" title="Edit Password">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
+</div>
 
     <!-- Add User Section -->
 <div id="adduser" class="content-section">
