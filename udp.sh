@@ -1084,7 +1084,7 @@ def update_user():
     return jsonify({"ok": False, "err": "Invalid data"})
 
 if __name__ == "__main__":
-    web_port = int(os.environ.get("WEB_PORT", "19432"))
+    web_port = int(os.environ.get("WEB_PORT", "19623"))
     app.run(host="0.0.0.0", port=web_port)
 PY
 
@@ -1826,7 +1826,7 @@ chmod 600 /etc/zivpn/* 2>/dev/null || true
 IP=$(hostname -I | awk '{print $1}')
 echo -e "\n$LINE\n${G}✅ ZIVPN Enterprise Edition Completed!${Z}"
 echo -e "${C}🔒 SOURCE CODE PROTECTION: ${G}ACTIVATED${Z}"
-echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$IP:19432${Z}"
+echo -e "${C}🌐 WEB PANEL:${Z} ${Y}http://$IP:19623${Z}"
 echo -e "\n${G}🔐 LOGIN CREDENTIALS${Z}"
 echo -e "  ${Y}• Username:${Z} ${Y}$WEB_USER${Z}"
 echo -e "  ${Y}• Password:${Z} ${Y}$WEB_PASS${Z}"
