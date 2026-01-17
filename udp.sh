@@ -955,16 +955,61 @@ def edit_expiry():
     finally:
         db.close()
 
-@app.route("/delete", methods=["POST"])
+@app.route("/delete", methods=["GET", "POST"])
 def delete_user_html():
     t = g.t
-    if not require_login(): return redirect(url_for('login'))
-    user = (request.form.get("user") or "").strip()
-    if not user: return build_view(err=t['required_fields'])
+    if not require_login(): 
+        return redirect(url_for('login'))
     
-    delete_user(user)
-    sync_config_passwords(mode="mirror")
-    return build_view(msg=t['deleted'].format(user=user))
+    # Handle both GET and POST methods
+    if request.method == "GET":
+        # GET request - get username from URL parameters
+        username = request.args.get("user", "").strip()
+        if not username:
+            return redirect(url_for('index'))  # Redirect to home if no username
+    else:
+        # POST request - get username from form data
+        username = (request.form.get("user") or "").strip()
+    
+    if not username:
+        return build_view(err=t['required_fields'])
+    
+    # Confirm deletion (for GET requests)
+    if request.method == "GET":
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Confirm Delete - ZIVPN</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {{ font-family: 'Padauk', sans-serif; padding: 20px; text-align: center; }}
+                .confirm-box {{ max-width: 400px; margin: 50px auto; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }}
+                .btn {{ padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; }}
+                .btn-danger {{ background: #ef4444; color: white; }}
+                .btn-secondary {{ background: #6b7280; color: white; }}
+            </style>
+        </head>
+        <body>
+            <div class="confirm-box">
+                <h2>Confirm Delete User</h2>
+                <p>Are you sure you want to delete user <strong>{username}</strong>?</p>
+                <form method="POST" action="/delete">
+                    <input type="hidden" name="user" value="{username}">
+                    <button type="submit" class="btn btn-danger">Yes, Delete User</button>
+                    <a href="/" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </body>
+        </html>
+        '''
+    
+    # Actual deletion (POST request)
+    delete_user(username)
+    sync_config_passwords()
+    
+    # Return success message
+    return build_view(msg=t['deleted'].format(user=username))
 
 @app.route("/suspend", methods=["POST"])
 def suspend_user():
