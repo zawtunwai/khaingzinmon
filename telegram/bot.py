@@ -46,33 +46,42 @@ def write_json_atomic(path, data):
         except: pass
 
 def sync_config_passwords():
-    """Sync passwords from database to ZIVPN config"""
+    """Sync ALL passwords from database to ZIVPN config - PRESERVE EVERYTHING"""
     db = get_db()
     try:
-        # Get all active users' passwords
-        active_users = db.execute('''
+        # Get ALL users' passwords (active, expired, suspended, banned - EVERYTHING)
+        all_users = db.execute('''
             SELECT password FROM users 
-            WHERE status = "active" AND password IS NOT NULL AND password != "" 
-                  AND (expires IS NULL OR expires >= CURRENT_DATE)
+            WHERE password IS NOT NULL AND password != ""
         ''').fetchall()
         
-        # Extract unique passwords
-        users_pw = sorted({str(u["password"]) for u in active_users})
+        # Extract unique passwords from database
+        db_passwords = sorted({str(u["password"]) for u in all_users})
         
-        # Update config file
+        # Read existing config file
         cfg = read_json(CONFIG_FILE, {})
         if not isinstance(cfg.get("auth"), dict): 
             cfg["auth"] = {}
         
+        # Get existing passwords from config
+        existing_passwords = cfg["auth"].get("config", [])
+        if not isinstance(existing_passwords, list):
+            existing_passwords = []
+        
+        # Merge: database passwords + existing config passwords (NO DUPLICATES)
+        all_passwords_set = set(db_passwords + existing_passwords)
+        combined_passwords = sorted(list(all_passwords_set))
+        
+        # Update config
         cfg["auth"]["mode"] = "passwords"
-        cfg["auth"]["config"] = users_pw
+        cfg["auth"]["config"] = combined_passwords
         
         write_json_atomic(CONFIG_FILE, cfg)
         
         # Restart ZIVPN service to apply changes
         result = subprocess.run("systemctl restart zivpn.service", shell=True, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
-            logger.info("ZIVPN service restarted successfully for config sync")
+            logger.info(f"ZIVPN service restarted. Passwords preserved: {len(combined_passwords)} total")
             return True
         else:
             logger.error(f"Failed to restart ZIVPN service: {result.stderr}")
