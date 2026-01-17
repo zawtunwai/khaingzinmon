@@ -398,32 +398,42 @@ def changepass_command(update, context):
     
     db = get_db()
     try:
-        # Check if user exists
-        user = db.execute('SELECT username FROM users WHERE username = ?', (username,)).fetchone()
+        # Check if user exists and get old password
+        user = db.execute('SELECT username, password FROM users WHERE username = ?', (username,)).fetchone()
         if not user:
             update.message.reply_text(f"❌ User `{username}` not found")
+            db.close()
             return
+        
+        old_password = user['password']
         
         # Update password
         db.execute('UPDATE users SET password = ? WHERE username = ?', (new_password, username))
         db.commit()
+        db.close()
         
-        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
-        sync_config_passwords()
+        # ✅ CRITICAL: Force immediate sync with ZIVPN config
+        sync_success = sync_config_passwords()
         
-        if password_source == "Auto-generated":
-            message = f"✅ *Password Auto-Generated*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`\n\n📋 Password copied to clipboard"
+        if sync_success:
+            if password_source == "Auto-generated":
+                message = f"✅ *Password Auto-Generated*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`\n\n⚠️ Old password `{old_password}` removed from VPN system"
+            else:
+                message = f"✅ *Password Manually Changed*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`\n\n⚠️ Old password `{old_password}` removed from VPN system"
+            
+            update.message.reply_text(message, parse_mode='Markdown')
+            logger.info(f"User {username} password changed from '{old_password}' to '{new_password}' by admin {update.effective_user.id} ({password_source})")
         else:
-            message = f"✅ *Password Manually Changed*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`"
-        
-        update.message.reply_text(message, parse_mode='Markdown')
-        logger.info(f"User {username} password changed by admin {update.effective_user.id} ({password_source})")
+            update.message.reply_text(f"⚠️ Password changed in database but VPN sync failed!\n\nOld password `{old_password}` may still work!\n\nRun manual sync: python3 /etc/zivpn/cleanup.py", parse_mode='Markdown')
         
     except Exception as e:
         logger.error(f"Error changing password: {e}")
         update.message.reply_text("❌ Error changing password")
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
 
 def deluser_command(update, context):
     """Delete user - PRIVATE (Admin only)"""
@@ -439,26 +449,37 @@ def deluser_command(update, context):
     db = get_db()
     try:
         # Check if user exists
-        existing = db.execute('SELECT username FROM users WHERE username = ?', (username,)).fetchone()
+        existing = db.execute('SELECT username, password FROM users WHERE username = ?', (username,)).fetchone()
         if not existing:
             update.message.reply_text(f"❌ User `{username}` not found")
+            db.close()
             return
+        
+        # Get user password before deletion for logging
+        user_password = existing['password']
         
         # Delete user
         db.execute('DELETE FROM users WHERE username = ?', (username,))
         db.commit()
+        db.close()
         
-        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
-        sync_config_passwords()
+        # ✅ CRITICAL: Force immediate sync with ZIVPN config
+        sync_success = sync_config_passwords()
         
-        update.message.reply_text(f"✅ User `{username}` deleted")
-        logger.info(f"User {username} deleted by admin {update.effective_user.id}")
+        if sync_success:
+            update.message.reply_text(f"✅ User `{username}` deleted\n🔒 VPN access immediately revoked")
+            logger.info(f"User {username} (pass: {user_password}) deleted and synced by admin {update.effective_user.id}")
+        else:
+            update.message.reply_text(f"⚠️ User `{username}` deleted from database\n❌ BUT VPN sync failed - user may still connect\n\nRun manual sync: python3 /etc/zivpn/cleanup.py")
+            logger.error(f"User {username} deleted but sync failed")
         
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
-        update.message.reply_text("❌ Error deleting user")
-    finally:
-        db.close()
+        update.message.reply_text(f"❌ Error deleting user: {str(e)[:100]}")
+        try:
+            db.close()
+        except:
+            pass
 
 def suspend_command(update, context):
     """Suspend user - PRIVATE (Admin only)"""
@@ -473,19 +494,40 @@ def suspend_command(update, context):
     username = context.args[0]
     db = get_db()
     try:
+        # Get current status and password
+        user_data = db.execute('SELECT status, password FROM users WHERE username = ?', (username,)).fetchone()
+        if not user_data:
+            update.message.reply_text(f"❌ User `{username}` not found")
+            db.close()
+            return
+        
+        if user_data['status'] == 'suspended':
+            update.message.reply_text(f"⚠️ User *{username}* is already suspended")
+            db.close()
+            return
+        
+        # Suspend user
         db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (username,))
         db.commit()
+        db.close()
         
-        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
-        sync_config_passwords()
+        # ✅ CRITICAL: Force immediate sync
+        sync_success = sync_config_passwords()
         
-        update.message.reply_text(f"✅ User *{username}* suspended\n\n🔓 Unsuspend: /activate {username}")
-        logger.info(f"User {username} suspended by admin {update.effective_user.id}")
+        if sync_success:
+            update.message.reply_text(f"✅ User *{username}* suspended\n🔒 VPN access immediately revoked\n\n🔓 Unsuspend: /activate {username}")
+            logger.info(f"User {username} suspended and synced by admin {update.effective_user.id}")
+        else:
+            update.message.reply_text(f"⚠️ User *{username}* suspended in database\n❌ BUT VPN sync failed - user may still connect")
+        
     except Exception as e:
         logger.error(f"Error suspending user: {e}")
         update.message.reply_text("❌ Error suspending user")
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
 
 def activate_command(update, context):
     """Activate user - PRIVATE (Admin only)"""
@@ -500,19 +542,40 @@ def activate_command(update, context):
     username = context.args[0]
     db = get_db()
     try:
+        # Get current status
+        user_data = db.execute('SELECT status FROM users WHERE username = ?', (username,)).fetchone()
+        if not user_data:
+            update.message.reply_text(f"❌ User `{username}` not found")
+            db.close()
+            return
+        
+        if user_data['status'] == 'active':
+            update.message.reply_text(f"⚠️ User *{username}* is already active")
+            db.close()
+            return
+        
+        # Activate user
         db.execute('UPDATE users SET status = "active" WHERE username = ?', (username,))
         db.commit()
+        db.close()
         
-        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
-        sync_config_passwords()
+        # ✅ CRITICAL: Force immediate sync
+        sync_success = sync_config_passwords()
         
-        update.message.reply_text(f"✅ User *{username}* activated")
-        logger.info(f"User {username} activated by admin {update.effective_user.id}")
+        if sync_success:
+            update.message.reply_text(f"✅ User *{username}* activated\n🔓 VPN access restored")
+            logger.info(f"User {username} activated and synced by admin {update.effective_user.id}")
+        else:
+            update.message.reply_text(f"⚠️ User *{username}* activated in database\n❌ BUT VPN sync failed - user may not connect yet")
+        
     except Exception as e:
         logger.error(f"Error activating user: {e}")
         update.message.reply_text("❌ Error activating user")
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
 
 def ban_user(update, context):
     """Ban user - PRIVATE (Admin only)"""
@@ -527,19 +590,40 @@ def ban_user(update, context):
     username = context.args[0]
     db = get_db()
     try:
+        # Get current status and password
+        user_data = db.execute('SELECT status, password FROM users WHERE username = ?', (username,)).fetchone()
+        if not user_data:
+            update.message.reply_text(f"❌ User `{username}` not found")
+            db.close()
+            return
+        
+        if user_data['status'] == 'banned':
+            update.message.reply_text(f"⚠️ User *{username}* is already banned")
+            db.close()
+            return
+        
+        # Ban user
         db.execute('UPDATE users SET status = "banned" WHERE username = ?', (username,))
         db.commit()
+        db.close()
         
-        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
-        sync_config_passwords()
+        # ✅ CRITICAL: Force immediate sync
+        sync_success = sync_config_passwords()
         
-        update.message.reply_text(f"✅ User *{username}* banned\n\n🔓 Unban: /unban {username}")
-        logger.info(f"User {username} banned by admin {update.effective_user.id}")
+        if sync_success:
+            update.message.reply_text(f"✅ User *{username}* banned\n🔒 VPN access immediately revoked\n\n🔓 Unban: /unban {username}")
+            logger.info(f"User {username} (pass: {user_data['password']}) banned and synced by admin {update.effective_user.id}")
+        else:
+            update.message.reply_text(f"⚠️ User *{username}* banned in database\n❌ BUT VPN sync failed - user may still connect")
+        
     except Exception as e:
         logger.error(f"Error banning user: {e}")
         update.message.reply_text("❌ Error banning user")
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
 
 def unban_user(update, context):
     """Unban user - PRIVATE (Admin only)"""
@@ -554,19 +638,40 @@ def unban_user(update, context):
     username = context.args[0]
     db = get_db()
     try:
+        # Get current status
+        user_data = db.execute('SELECT status FROM users WHERE username = ?', (username,)).fetchone()
+        if not user_data:
+            update.message.reply_text(f"❌ User `{username}` not found")
+            db.close()
+            return
+        
+        if user_data['status'] != 'banned':
+            update.message.reply_text(f"⚠️ User *{username}* is not banned (status: {user_data['status']})")
+            db.close()
+            return
+        
+        # Unban user (set to active)
         db.execute('UPDATE users SET status = "active" WHERE username = ?', (username,))
         db.commit()
+        db.close()
         
-        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
-        sync_config_passwords()
+        # ✅ CRITICAL: Force immediate sync
+        sync_success = sync_config_passwords()
         
-        update.message.reply_text(f"✅ User *{username}* unbanned")
-        logger.info(f"User {username} unbanned by admin {update.effective_user.id}")
+        if sync_success:
+            update.message.reply_text(f"✅ User *{username}* unbanned\n🔓 VPN access restored")
+            logger.info(f"User {username} unbanned and synced by admin {update.effective_user.id}")
+        else:
+            update.message.reply_text(f"⚠️ User *{username}* unbanned in database\n❌ BUT VPN sync failed - user may not connect yet")
+        
     except Exception as e:
         logger.error(f"Error unbanning user: {e}")
         update.message.reply_text("❌ Error unbanning user")
     finally:
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
 
 def renew_command(update, context):
     """Renew user - PRIVATE (Admin only)"""
