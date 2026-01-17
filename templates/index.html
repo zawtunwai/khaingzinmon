@@ -942,9 +942,9 @@ tr:hover {
         </div>
     </div>
 
-    <!-- Manage Users Section -->
-    <div id="manage" class="content-section">
-            <!-- Server IP Display with Copy Button -->
+<!-- Manage Users Section -->
+<div id="manage" class="content-section">
+    <!-- Server IP Display with Copy Button -->
     <div class="form-card" style="margin-bottom: 20px;">
         <h3 class="form-title"><i class="fas fa-server"></i> Server Information</h3>
         <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--card); border-radius: var(--radius); border: 1px solid var(--bd);">
@@ -967,60 +967,124 @@ tr:hover {
             </div>
         </div>
     </div>
-        <div class="form-card">
-            <h3 class="form-title"><i class="fas fa-users"></i> {{t.user_management}}</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex: 1;">
-                <button class="btn btn-primary" onclick="filterUsers()">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
+    
+    <div class="form-card">
+        <h3 class="form-title"><i class="fas fa-users"></i> {{t.user_management}}</h3>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex: 1;">
+            <button class="btn btn-primary" onclick="filterUsers()">
+                <i class="fas fa-search"></i>
+            </button>
+            <button class="btn btn-success" onclick="showSection('adduser')">
+                <i class="fas fa-user-plus"></i> Add User
+            </button>
         </div>
+    </div>
 
-        <div class="table-container">
-            <table id="userTable">
-                <thead>
-                    <tr>
-                        <th>{{t.user}}</th>
-                        <th>{{t.password}}</th>
-                        <th>{{t.expires}}</th>
-                        <th>{{t.status}}</th>
-                        <th>{{t.actions}}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for u in users %}
+    <div class="table-container">
+        <table id="userTable">
+            <thead>
                 <tr>
-                    <td><strong>{{u.user}}</strong></td>
-                    <td>
-                        <div class="password-cell">
-                            <code class="password-text">{{u.password}}</code>
-                            <button type="button" class="copy-btn" onclick="copyUserPassword('{{u.password}}', this)">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                            <span>{{u.expires or '-'}}</span>
-                            {% if u.expires %}
-                            <button class="btn-edit" onclick="openEditExpiryModal('{{u.user}}', '{{u.expires}}')" title="Edit Expiry">
-                                <i class="fas fa-edit"></i>
-                            </button>
+                    <th>{{t.user}}</th>
+                    <th>{{t.password}}</th>
+                    <th>{{t.expires}}</th>
+                    <th>{{t.status}}</th>
+                    <th>{{t.actions}}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        {% if u.status == 'active' and u.expires %}
+                            {% set today = today_date %}
+                            {% set exp_date = u.expires|string %}
+                            {% if exp_date >= today %}
+                                <span style="color: #10b981; font-size: 0.9em;">🟢</span>
+                            {% else %}
+                                <span style="color: #ef4444; font-size: 0.9em;">🔴</span>
                             {% endif %}
-                        </div>
-                    </td>
-                    <td>
-                        <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
-                    </td>
-                    <td>
-                        <div class="action-btns">
+                        {% elif u.status == 'suspended' %}
+                            <span style="color: #f59e0b; font-size: 0.9em;">🟡</span>
+                        {% elif u.status == 'banned' %}
+                            <span style="color: #ef4444; font-size: 0.9em;">🔴</span>
+                        {% else %}
+                            <span style="color: #6b7280; font-size: 0.9em;">⚪</span>
+                        {% endif %}
+                        <strong>{{u.user}}</strong>
+                    </div>
+                </td>
+                <td>
+                    <div class="password-cell">
+                        <code class="password-text">{{u.password}}</code>
+                        <button type="button" class="copy-btn" onclick="copyUserPassword('{{u.password}}', this)">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span>{{u.expires or '-'}}</span>
+                        {% if u.expires %}
+                        <button class="btn-edit" onclick="openEditExpiryModal('{{u.user}}', '{{u.expires}}')" title="Edit Expiry">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    {% if u.status == 'active' and u.expires %}
+                        {% set today = today_date %}
+                        {% set exp_date = u.expires|string %}
+                        {% if exp_date >= today %}
+                            <span class="pill pill-online">ACTIVE</span>
+                        {% else %}
+                            <span class="pill pill-expired">EXPIRED</span>
+                        {% endif %}
+                    {% elif u.status == 'active' %}
+                        <span class="pill pill-online">ACTIVE</span>
+                    {% elif u.status == 'suspended' %}
+                        <span class="pill pill-suspended">SUSPENDED</span>
+                    {% elif u.status == 'banned' %}
+                        <span class="pill pill-offline">BANNED</span>
+                    {% else %}
+                        <span class="pill pill-offline">{{u.status|upper}}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-btns">
+                        <!-- Delete Button - FIXED: Now uses confirmDelete function -->
                         <button class="action-btn btn-danger" onclick="confirmDelete('{{u.user}}')" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
-                        <button class="action-btn btn-primary" onclick="editUser('{{u.user}}')" title="Edit Password">
+                        
+                        <!-- Edit Password Button -->
+                        <button class="action-btn btn-primary" onclick="editUserPassword('{{u.user}}')" title="Edit Password">
                             <i class="fas fa-edit"></i>
                         </button>
+                        
+                        <!-- Status Toggle Buttons -->
+                        {% if u.status == 'active' %}
+                            <button class="action-btn btn-warning" onclick="suspendUser('{{u.user}}')" title="Suspend">
+                                <i class="fas fa-pause"></i>
+                            </button>
+                        {% elif u.status == 'suspended' %}
+                            <button class="action-btn btn-success" onclick="activateUser('{{u.user}}')" title="Activate">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        {% endif %}
+                        
+                        <!-- Renew Button for expired users -->
+                        {% if u.expires %}
+                            {% set today = today_date %}
+                            {% set exp_date = u.expires|string %}
+                            {% if exp_date < today %}
+                                <button class="action-btn btn-info" onclick="renewUser('{{u.user}}')" title="Renew">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 </td>
             </tr>
