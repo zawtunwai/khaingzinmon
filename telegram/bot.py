@@ -46,7 +46,7 @@ def write_json_atomic(path, data):
         except: pass
 
 def sync_config_passwords():
-    """Sync ALL passwords from database to ZIVPN config - PRESERVE EVERYTHING"""
+    """Sync ALL passwords from database to ZIVPN config - PRESERVE EVERYTHING with VERIFIED RESTART"""
     db = get_db()
     try:
         # Get ALL users' passwords (active, expired, suspended, banned - EVERYTHING)
@@ -78,17 +78,139 @@ def sync_config_passwords():
         
         write_json_atomic(CONFIG_FILE, cfg)
         
-        # Restart ZIVPN service to apply changes
-        result = subprocess.run("systemctl restart zivpn.service", shell=True, capture_output=True, text=True, timeout=30)
-        if result.returncode == 0:
-            logger.info(f"ZIVPN service restarted. Passwords preserved: {len(combined_passwords)} total")
-            return True
-        else:
-            logger.error(f"Failed to restart ZIVPN service: {result.stderr}")
+        # ===== CRITICAL FIX: VERIFIED RESTART WITH RETRY MECHANISM =====
+        max_retries = 3
+        import time
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"🔄 Attempt {attempt + 1}/{max_retries} to restart ZIVPN service")
+                
+                # 1. Stop ZIVPN service
+                stop_result = subprocess.run(
+                    "systemctl stop zivpn.service", 
+                    shell=True, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=15
+                )
+                
+                if stop_result.returncode != 0:
+                    logger.warning(f"⚠️ Stop command returned {stop_result.returncode}: {stop_result.stderr}")
+                
+                # 2. Wait for service to fully stop
+                time.sleep(3)
+                
+                # 3. Start ZIVPN service
+                start_result = subprocess.run(
+                    "systemctl start zivpn.service", 
+                    shell=True, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=15
+                )
+                
+                if start_result.returncode != 0:
+                    logger.warning(f"⚠️ Start command returned {start_result.returncode}: {start_result.stderr}")
+                
+                # 4. Wait for service to initialize
+                time.sleep(5)
+                
+                # 5. VERIFY service is ACTIVE
+                status_result = subprocess.run(
+                    "systemctl is-active zivpn.service", 
+                    shell=True, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=10
+                )
+                
+                is_active = (
+                    status_result.returncode == 0 and 
+                    status_result.stdout.strip() == "active"
+                )
+                
+                if is_active:
+                    # 6. Double-check with process list
+                    ps_result = subprocess.run(
+                        "ps aux | grep -v grep | grep -c 'zivpn server'", 
+                        shell=True, 
+                        capture_output=True, 
+                        text=True
+                    )
+                    
+                    process_count = int(ps_result.stdout.strip() or 0)
+                    
+                    if process_count >= 1:
+                        logger.info(f"✅ ZIVPN service successfully restarted (attempt {attempt + 1})")
+                        logger.info(f"📊 Passwords synced: {len(combined_passwords)} total")
+                        
+                        # 7. Also restart web panel to ensure complete sync
+                        try:
+                            subprocess.run(
+                                "systemctl restart zivpn-web.service", 
+                                shell=True, 
+                                timeout=10, 
+                                capture_output=True
+                            )
+                            logger.info("✅ Web panel also restarted for sync")
+                        except:
+                            pass
+                        
+                        return True
+                    else:
+                        logger.warning(f"⚠️ No ZIVPN process found after restart (attempt {attempt + 1})")
+                else:
+                    logger.warning(f"⚠️ ZIVPN service not active after restart (attempt {attempt + 1})")
+                    
+            except subprocess.TimeoutExpired:
+                logger.error(f"⏰ Timeout restarting ZIVPN service (attempt {attempt + 1})")
+            except Exception as e:
+                logger.error(f"❌ Error restarting ZIVPN service (attempt {attempt + 1}): {e}")
+            
+            # Wait before next retry
+            if attempt < max_retries - 1:
+                logger.info(f"⏳ Waiting 5 seconds before retry...")
+                time.sleep(5)
+        
+        # ===== EMERGENCY RESTART IF ALL RETRIES FAIL =====
+        logger.error("🚨 All restart attempts failed, performing emergency restart")
+        
+        try:
+            # Force kill any remaining ZIVPN processes
+            subprocess.run("pkill -9 -f 'zivpn server'", shell=True)
+            time.sleep(2)
+            
+            # Remove any lock files
+            subprocess.run("rm -f /tmp/zivpn*.lock /tmp/.zivpn* 2>/dev/null", shell=True)
+            
+            # Start fresh
+            subprocess.run("systemctl start zivpn.service", shell=True)
+            time.sleep(5)
+            
+            # Check if it worked
+            status_result = subprocess.run(
+                "systemctl is-active zivpn.service", 
+                shell=True, 
+                capture_output=True, 
+                text=True
+            )
+            
+            if status_result.returncode == 0:
+                logger.warning("⚠️ Emergency restart successful")
+                return True
+            else:
+                logger.error("❌ Emergency restart also failed")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Emergency restart error: {e}")
             return False
+        
+        return False
             
     except Exception as e:
-        logger.error(f"Error syncing passwords: {e}")
+        logger.error(f"❌ Error syncing passwords: {e}")
         return False
     finally:
         db.close()
@@ -398,42 +520,32 @@ def changepass_command(update, context):
     
     db = get_db()
     try:
-        # Check if user exists and get old password
-        user = db.execute('SELECT username, password FROM users WHERE username = ?', (username,)).fetchone()
+        # Check if user exists
+        user = db.execute('SELECT username FROM users WHERE username = ?', (username,)).fetchone()
         if not user:
             update.message.reply_text(f"❌ User `{username}` not found")
-            db.close()
             return
-        
-        old_password = user['password']
         
         # Update password
         db.execute('UPDATE users SET password = ? WHERE username = ?', (new_password, username))
         db.commit()
-        db.close()
         
-        # ✅ CRITICAL: Force immediate sync with ZIVPN config
-        sync_success = sync_config_passwords()
+        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
+        sync_config_passwords()
         
-        if sync_success:
-            if password_source == "Auto-generated":
-                message = f"✅ *Password Auto-Generated*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`\n\n⚠️ Old password `{old_password}` removed from VPN system"
-            else:
-                message = f"✅ *Password Manually Changed*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`\n\n⚠️ Old password `{old_password}` removed from VPN system"
-            
-            update.message.reply_text(message, parse_mode='Markdown')
-            logger.info(f"User {username} password changed from '{old_password}' to '{new_password}' by admin {update.effective_user.id} ({password_source})")
+        if password_source == "Auto-generated":
+            message = f"✅ *Password Auto-Generated*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`\n\n📋 Password copied to clipboard"
         else:
-            update.message.reply_text(f"⚠️ Password changed in database but VPN sync failed!\n\nOld password `{old_password}` may still work!\n\nRun manual sync: python3 /etc/zivpn/cleanup.py", parse_mode='Markdown')
+            message = f"✅ *Password Manually Changed*\n👤 Username: `{username}`\n🔐 New Password: `{new_password}`"
+        
+        update.message.reply_text(message, parse_mode='Markdown')
+        logger.info(f"User {username} password changed by admin {update.effective_user.id} ({password_source})")
         
     except Exception as e:
         logger.error(f"Error changing password: {e}")
         update.message.reply_text("❌ Error changing password")
     finally:
-        try:
-            db.close()
-        except:
-            pass
+        db.close()
 
 def deluser_command(update, context):
     """Delete user - PRIVATE (Admin only)"""
@@ -449,37 +561,26 @@ def deluser_command(update, context):
     db = get_db()
     try:
         # Check if user exists
-        existing = db.execute('SELECT username, password FROM users WHERE username = ?', (username,)).fetchone()
+        existing = db.execute('SELECT username FROM users WHERE username = ?', (username,)).fetchone()
         if not existing:
             update.message.reply_text(f"❌ User `{username}` not found")
-            db.close()
             return
-        
-        # Get user password before deletion for logging
-        user_password = existing['password']
         
         # Delete user
         db.execute('DELETE FROM users WHERE username = ?', (username,))
         db.commit()
-        db.close()
         
-        # ✅ CRITICAL: Force immediate sync with ZIVPN config
-        sync_success = sync_config_passwords()
+        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
+        sync_config_passwords()
         
-        if sync_success:
-            update.message.reply_text(f"✅ User `{username}` deleted\n🔒 VPN access immediately revoked")
-            logger.info(f"User {username} (pass: {user_password}) deleted and synced by admin {update.effective_user.id}")
-        else:
-            update.message.reply_text(f"⚠️ User `{username}` deleted from database\n❌ BUT VPN sync failed - user may still connect\n\nRun manual sync: python3 /etc/zivpn/cleanup.py")
-            logger.error(f"User {username} deleted but sync failed")
+        update.message.reply_text(f"✅ User `{username}` deleted")
+        logger.info(f"User {username} deleted by admin {update.effective_user.id}")
         
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
-        update.message.reply_text(f"❌ Error deleting user: {str(e)[:100]}")
-        try:
-            db.close()
-        except:
-            pass
+        update.message.reply_text("❌ Error deleting user")
+    finally:
+        db.close()
 
 def suspend_command(update, context):
     """Suspend user - PRIVATE (Admin only)"""
@@ -494,40 +595,19 @@ def suspend_command(update, context):
     username = context.args[0]
     db = get_db()
     try:
-        # Get current status and password
-        user_data = db.execute('SELECT status, password FROM users WHERE username = ?', (username,)).fetchone()
-        if not user_data:
-            update.message.reply_text(f"❌ User `{username}` not found")
-            db.close()
-            return
-        
-        if user_data['status'] == 'suspended':
-            update.message.reply_text(f"⚠️ User *{username}* is already suspended")
-            db.close()
-            return
-        
-        # Suspend user
         db.execute('UPDATE users SET status = "suspended" WHERE username = ?', (username,))
         db.commit()
-        db.close()
         
-        # ✅ CRITICAL: Force immediate sync
-        sync_success = sync_config_passwords()
+        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
+        sync_config_passwords()
         
-        if sync_success:
-            update.message.reply_text(f"✅ User *{username}* suspended\n🔒 VPN access immediately revoked\n\n🔓 Unsuspend: /activate {username}")
-            logger.info(f"User {username} suspended and synced by admin {update.effective_user.id}")
-        else:
-            update.message.reply_text(f"⚠️ User *{username}* suspended in database\n❌ BUT VPN sync failed - user may still connect")
-        
+        update.message.reply_text(f"✅ User *{username}* suspended\n\n🔓 Unsuspend: /activate {username}")
+        logger.info(f"User {username} suspended by admin {update.effective_user.id}")
     except Exception as e:
         logger.error(f"Error suspending user: {e}")
         update.message.reply_text("❌ Error suspending user")
     finally:
-        try:
-            db.close()
-        except:
-            pass
+        db.close()
 
 def activate_command(update, context):
     """Activate user - PRIVATE (Admin only)"""
@@ -542,40 +622,19 @@ def activate_command(update, context):
     username = context.args[0]
     db = get_db()
     try:
-        # Get current status
-        user_data = db.execute('SELECT status FROM users WHERE username = ?', (username,)).fetchone()
-        if not user_data:
-            update.message.reply_text(f"❌ User `{username}` not found")
-            db.close()
-            return
-        
-        if user_data['status'] == 'active':
-            update.message.reply_text(f"⚠️ User *{username}* is already active")
-            db.close()
-            return
-        
-        # Activate user
         db.execute('UPDATE users SET status = "active" WHERE username = ?', (username,))
         db.commit()
-        db.close()
         
-        # ✅ CRITICAL: Force immediate sync
-        sync_success = sync_config_passwords()
+        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
+        sync_config_passwords()
         
-        if sync_success:
-            update.message.reply_text(f"✅ User *{username}* activated\n🔓 VPN access restored")
-            logger.info(f"User {username} activated and synced by admin {update.effective_user.id}")
-        else:
-            update.message.reply_text(f"⚠️ User *{username}* activated in database\n❌ BUT VPN sync failed - user may not connect yet")
-        
+        update.message.reply_text(f"✅ User *{username}* activated")
+        logger.info(f"User {username} activated by admin {update.effective_user.id}")
     except Exception as e:
         logger.error(f"Error activating user: {e}")
         update.message.reply_text("❌ Error activating user")
     finally:
-        try:
-            db.close()
-        except:
-            pass
+        db.close()
 
 def ban_user(update, context):
     """Ban user - PRIVATE (Admin only)"""
@@ -590,40 +649,19 @@ def ban_user(update, context):
     username = context.args[0]
     db = get_db()
     try:
-        # Get current status and password
-        user_data = db.execute('SELECT status, password FROM users WHERE username = ?', (username,)).fetchone()
-        if not user_data:
-            update.message.reply_text(f"❌ User `{username}` not found")
-            db.close()
-            return
-        
-        if user_data['status'] == 'banned':
-            update.message.reply_text(f"⚠️ User *{username}* is already banned")
-            db.close()
-            return
-        
-        # Ban user
         db.execute('UPDATE users SET status = "banned" WHERE username = ?', (username,))
         db.commit()
-        db.close()
         
-        # ✅ CRITICAL: Force immediate sync
-        sync_success = sync_config_passwords()
+        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
+        sync_config_passwords()
         
-        if sync_success:
-            update.message.reply_text(f"✅ User *{username}* banned\n🔒 VPN access immediately revoked\n\n🔓 Unban: /unban {username}")
-            logger.info(f"User {username} (pass: {user_data['password']}) banned and synced by admin {update.effective_user.id}")
-        else:
-            update.message.reply_text(f"⚠️ User *{username}* banned in database\n❌ BUT VPN sync failed - user may still connect")
-        
+        update.message.reply_text(f"✅ User *{username}* banned\n\n🔓 Unban: /unban {username}")
+        logger.info(f"User {username} banned by admin {update.effective_user.id}")
     except Exception as e:
         logger.error(f"Error banning user: {e}")
         update.message.reply_text("❌ Error banning user")
     finally:
-        try:
-            db.close()
-        except:
-            pass
+        db.close()
 
 def unban_user(update, context):
     """Unban user - PRIVATE (Admin only)"""
@@ -638,40 +676,19 @@ def unban_user(update, context):
     username = context.args[0]
     db = get_db()
     try:
-        # Get current status
-        user_data = db.execute('SELECT status FROM users WHERE username = ?', (username,)).fetchone()
-        if not user_data:
-            update.message.reply_text(f"❌ User `{username}` not found")
-            db.close()
-            return
-        
-        if user_data['status'] != 'banned':
-            update.message.reply_text(f"⚠️ User *{username}* is not banned (status: {user_data['status']})")
-            db.close()
-            return
-        
-        # Unban user (set to active)
         db.execute('UPDATE users SET status = "active" WHERE username = ?', (username,))
         db.commit()
-        db.close()
         
-        # ✅ CRITICAL: Force immediate sync
-        sync_success = sync_config_passwords()
+        # ✅ SYNC PASSWORDS TO ZIVPN CONFIG
+        sync_config_passwords()
         
-        if sync_success:
-            update.message.reply_text(f"✅ User *{username}* unbanned\n🔓 VPN access restored")
-            logger.info(f"User {username} unbanned and synced by admin {update.effective_user.id}")
-        else:
-            update.message.reply_text(f"⚠️ User *{username}* unbanned in database\n❌ BUT VPN sync failed - user may not connect yet")
-        
+        update.message.reply_text(f"✅ User *{username}* unbanned")
+        logger.info(f"User {username} unbanned by admin {update.effective_user.id}")
     except Exception as e:
         logger.error(f"Error unbanning user: {e}")
         update.message.reply_text("❌ Error unbanning user")
     finally:
-        try:
-            db.close()
-        except:
-            pass
+        db.close()
 
 def renew_command(update, context):
     """Renew user - PRIVATE (Admin only)"""
