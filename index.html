@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+    <meta charset="utf-8">
+    <title>{{t.title}} - မောင်သုည</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="refresh" content="120">
+    <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+:root{
+    --bg-dark: #0f172a; --fg-dark: #f1f5f9; --card-dark: #1e293b; --bd-dark: #334155; --primary-dark: #3b82f6;
+    --bg-light: #f8fafc; --fg-light: #1e293b; --card-light: #ffffff; --bd-light: #e2e8f0; --primary-light: #2563eb;
+    --ok: #10b981; --bad: #ef4444; --unknown: #f59e0b; --expired: #8b5cf6;
+    --success: #06d6a0; --delete-btn: #ef4444; --logout-btn: #f97316;
+    --shadow: 0 10px 25px -5px rgba(0,0,0,0.3), 0 8px 10px -6px rgba(0,0,0,0.2);
+    --radius: 16px; 
+    
+    /* Updated: Rainbow Gradient - အရောင်မျိုးစုံ */
+    --gradient: linear-gradient(
+        135deg,
+        #667eea 0%,
+        #764ba2 20%,
+        #ec4899 40%,
+        #f97316 60%,
+        #84cc16 80%,
+        #06b6d4 100%
+    );
+}
+[data-theme='dark']{
+    --bg: var(--bg-dark); --fg: var(--fg-dark); --card: var(--card-dark);
+    --bd: var(--bd-dark); --primary-btn: var(--primary-dark); --input-text: var(--fg-dark);
+}
+[data-theme='light']{
+    --bg: var(--bg-light); --fg: var(--fg-light); --card: var(--card-light);
+    --bd: var(--bd-light); --primary-btn: var(--primary-light); --input-text: var(--fg-light);
+}
+* {
+    box-sizing: border-box;
+}
+html,body{
+    background:var(--bg);color:var(--fg);font-family:'Padauk',sans-serif;
+    line-height:1.6;margin:0;padding:0;transition:all 0.3s ease;
+    min-height: 100vh;
+}
+.container{
+    max-width:1400px;margin:auto;padding:20px;padding-bottom: 80px;
+}
+
+/* Modern Header - Rainbow Gradient */
+.header {
+    background: var(--gradient);
+    background-size: 400% 400%;
+    animation: gradientFlow 10s ease infinite;
+    padding: 25px 20px;
+    margin-bottom: 25px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.header-content {
+    position: relative;
+    z-index: 2;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.logo {
+    height: 80px;
+    width: 80px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.95);
+    background: white;
+    padding: 6px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease;
+}
+
+.logo:hover {
+    transform: scale(1.05);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 2.8em;
+    font-weight: 900;
+    color: white;
+    text-shadow: 
+        3px 3px 6px rgba(0,0,0,0.4),
+        0 0 30px rgba(255,255,255,0.3);
+    letter-spacing: 1.5px;
+}
+
+.header .subtitle {
+    color: rgba(255,255,255,0.95);
+    font-size: 1.2em;
+    margin-top: 10px;
+    font-weight: 600;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.header .subtitle span {
+    padding: 8px 18px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 30px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.header .subtitle span:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.header .subtitle i {
+    margin-right: 8px;
+}
+
+/* Bottom Navigation Bar */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--bd);
+    padding: 8px 0;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+}
+
+.nav-items {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--fg);
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    transition: all 0.3s ease;
+    flex: 1;
+    max-width: 80px;
+}
+
+.nav-item:hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--primary-btn);
+}
+
+.nav-item.active {
+    color: var(--primary-btn);
+    background: rgba(59, 130, 246, 0.15);
+}
+
+.nav-icon {
+    font-size: 1.2em;
+    margin-bottom: 4px;
+    transition: transform 0.3s ease;
+}
+
+.nav-item.active .nav-icon {
+    transform: scale(1.1);
+}
+
+.nav-label {
+    font-size: 0.75em;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Content Sections */
+.content-section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.content-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    padding: 20px;
+    background: var(--card);
+    border-radius: var(--radius);
+    text-align: center;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--bd);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    font-size: 2em;
+    margin-bottom: 10px;
+    opacity: 0.9;
+}
+
+.stat-number {
+    font-size: 1.8em;
+    font-weight: 900;
+    margin: 8px 0;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+    font-size: 0.85em;
+    color: var(--bd);
+    font-weight: 600;
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.quick-btn {
+    padding: 15px 10px;
+    background: var(--card);
+    border: 1px solid var(--bd);
+    border-radius: var(--radius);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: var(--fg);
+}
+
+.quick-btn:hover {
+    background: var(--primary-btn);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.quick-btn i {
+    font-size: 1.3em;
+    margin-bottom: 6px;
+    display: block;
+}
+
+.quick-btn span {
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+/* Forms and Tables */
+.form-card {
+    background: var(--card);
+    padding: 20px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--bd);
+    margin-bottom: 20px;
+}
+
+.form-title {
+    color: var(--primary-btn);
+    margin: 0 0 15px 0;
+    font-size: 1.3em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--fg);
+    font-size: 0.9em;
+}
+
+input, select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--bd);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--input-text);
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-btn);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Buttons */
+.btn {
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius);
+    color: white;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+}
+
+.btn-primary { background: var(--primary-btn); }
+.btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+
+.btn-success { background: var(--success); }
+.btn-success:hover { background: #05c189; transform: translateY(-1px); }
+
+.btn-danger { background: var(--delete-btn); }
+.btn-danger:hover { background: #dc2626; transform: translateY(-1px); }
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Table */
+.table-container {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    background: var(--card);
+    border: 1px solid var(--bd);
+    margin: 20px 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+}
+
+th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--bd);
+    font-size: 0.85em;
+}
+
+th {
+    background: var(--primary-btn);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+tr:hover {
+    background: rgba(59, 130, 246, 0.05);
+}
+
+/* Status Pills */
+.pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 700;
+    color: white;
+}
+
+.pill-online { background: var(--ok); }
+.pill-offline { background: var(--bad); }
+.pill-expired { background: var(--expired); }
+.pill-suspended { background: var(--unknown); }
+
+/* Action Buttons */
+.action-btns {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 6px 10px;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.8em;
+}
+
+.action-btn i {
+    font-size: 0.9em;
+}
+
+/* Password Copy Button */
+.password-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.password-text {
+    font-family: monospace;
+    background: var(--bg);
+    padding: 4px 8px;
+    border-radius: 4px;
+    flex: 1;
+    word-break: break-all;
+}
+
+.copy-btn {
+    padding: 6px 10px;
+    border: none;
+    border-radius: var(--radius);
+    background: var(--primary-btn);
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.75em;
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.copy-btn.copied {
+    background: var(--success);
+}
+
+/* Edit Expiry Button */
+.btn-edit {
+    background: var(--unknown);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75em;
+    transition: all 0.3s ease;
+}
+
+.btn-edit:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+}
+
+/* Modal Styles */
+.settings-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+}
+
+.settings-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    padding: 25px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.3);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--bd);
+}
+
+.settings-header h3 {
+    margin: 0;
+    color: var(--primary-btn);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-settings {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 5px;
+}
+
+.setting-group {
+    margin-bottom: 20px;
+}
+
+.setting-label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: var(--fg);
+}
+
+.theme-options, .lang-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.theme-option, .lang-option {
+    padding: 12px;
+    border: 2px solid var(--bd);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.theme-option:hover, .lang-option:hover {
+    border-color: var(--primary-btn);
+}
+
+.theme-option.active, .lang-option.active {
+    border-color: var(--primary-btn);
+    background: var(--primary-btn);
+    color: white;
+}
+
+/* Edit Expiry Modal */
+.edit-expiry-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.edit-expiry-content {
+    background: var(--card);
+    padding: 25px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid var(--bd);
+}
+
+.edit-expiry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--bd);
+}
+
+.edit-expiry-header h3 {
+    margin: 0;
+    color: var(--primary-btn);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-edit-expiry {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 5px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.form-actions .btn {
+    flex: 1;
+}
+
+/* Login Styles */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--gradient);
+    padding: 20px;
+}
+
+.login-card {
+    background: var(--card);
+    padding: 30px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.login-logo {
+    height: 80px;
+    width: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--primary-btn);
+    margin: 0 auto 20px;
+    padding: 5px;
+    background: white;
+}
+
+.login-title {
+    margin: 0 0 20px 0;
+    color: var(--fg);
+    font-size: 1.5em;
+    font-weight: 700;
+}
+
+/* Messages */
+.alert {
+    padding: 12px 15px;
+    border-radius: var(--radius);
+    margin: 15px 0;
+    font-weight: 600;
+}
+
+.alert-success {
+    background: var(--success);
+    color: white;
+}
+
+.alert-error {
+    background: var(--delete-btn);
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        padding-bottom: 70px;
+    }
+    
+    .header {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .header h1 {
+        font-size: 1.5em;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    th, td {
+        padding: 10px 12px;
+        font-size: 0.8em;
+    }
+    
+    .nav-label {
+        font-size: 0.7em;
+    }
+    
+    .password-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .copy-btn {
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .nav-item {
+        padding: 6px 8px;
+    }
+    
+    .nav-label {
+        font-size: 0.65em;
+    }
+}
+
+/* Expiry Action Button Styles */
+.expiry-action-btn {
+    padding: 15px 10px;
+    border: 2px solid var(--bd);
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.expiry-action-btn:hover {
+    border-color: var(--primary-btn);
+    transform: translateY(-2px);
+}
+
+.expiry-action-btn.active {
+    border-color: var(--primary-btn);
+    background: var(--primary-btn);
+    color: white;
+}
+
+.expiry-action-btn i {
+    font-size: 1.5em;
+    margin-bottom: 5px;
+}
+
+.expiry-action-btn div {
+    font-weight: 700;
+    font-size: 1.1em;
+}
+
+.expiry-action-btn small {
+    font-size: 0.8em;
+    opacity: 0.9;
+}
+</style>
+</head>
+<body data-theme="{{theme}}">
+
+{% if not authed %}
+<div class="login-container">
+    <div class="login-card">
+        <img src="{{ logo }}" alt="ZIVPN" class="login-logo">
+        <h2 class="login-title">{{t.login_title}}</h2>
+        {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %}
+        <form method="post" action="/login">
+            <div class="form-group">
+                <label><i class="fas fa-user"></i> {{t.username}}</label>
+                <input name="u" autofocus required>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-lock"></i> {{t.password}}</label>
+                <input name="p" type="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-sign-in-alt"></i>{{t.login}}
+            </button>
+        </form>
+    </div>
+</div>
+{% else %}
+
+<div class="container">
+    <!-- Modern Header - Rainbow Gradient -->
+<header class="header">
+    <div class="header-content">
+        <div class="logo-container">
+            <img src="{{ logo }}" alt="ZIVPN" class="logo">
+            <div style="text-align: left;">
+                <h1>မောင်သုည ZIVPN ENTERPRISE</h1>
+                <div class="subtitle" style="margin-top: 8px; font-size: 1.1em;">
+        ⚡ Premium VPN Management System
+                </div>
+            </div>
+        </div>
+        <div class="subtitle">
+            <span><i class="fas fa-shield-alt"></i> Secure</span>
+            <span><i class="fas fa-bolt"></i> Fast</span>
+            <span><i class="fas fa-infinity"></i> Unlimited</span>
+            <span><i class="fas fa-globe-asia"></i> Global</span>
+        </div>
+    </div>
+</header>
+
+    <!-- Home Section -->
+    <div id="home" class="content-section active">
+        <!-- Stats Overview -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="color:var(--primary-btn);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-number">{{ stats.total_users }}</div>
+                <div class="stat-label">{{t.total_users}}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:var(--ok);">
+                    <i class="fas fa-signal"></i>
+                </div>
+                <div class="stat-number">{{ stats.active_users }}</div>
+                <div class="stat-label">{{t.active_users}}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:var(--delete-btn);">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="stat-number">{{ stats.total_bandwidth }}</div>
+                <div class="stat-label">{{t.bandwidth_used}}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:var(--unknown);">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="stat-number">{{ stats.server_load }}%</div>
+                <div class="stat-label">{{t.server_load}}</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="form-card">
+            <h3 class="form-title"><i class="fas fa-bolt"></i> {{t.quick_actions}}</h3>
+            <div class="quick-actions">
+                <a href="javascript:void(0)" class="quick-btn" onclick="showSection('manage')">
+                    <i class="fas fa-users"></i>
+                    <span>{{t.manage}}</span>
+                </a>
+                <a href="javascript:void(0)" class="quick-btn" onclick="showSection('adduser')">
+                    <i class="fas fa-user-plus"></i>
+                    <span>{{t.add_user}}</span>
+                </a>
+                <a href="javascript:void(0)" class="quick-btn" onclick="showSection('bulk')">
+                    <i class="fas fa-cogs"></i>
+                    <span>{{t.bulk_ops}}</span>
+                </a>
+                <a href="javascript:void(0)" class="quick-btn" onclick="showSection('reports')">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>{{t.reports}}</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="form-card">
+            <h3 class="form-title"><i class="fas fa-clock"></i> {{t.recent_activity}}</h3>
+            <div style="max-height: 200px; overflow-y: auto;">
+                {% for u in users[:5] %}
+                <div style="padding: 10px; border-bottom: 1px solid var(--bd); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>{{u.user}}</strong>
+                        <div style="font-size: 0.8em; color: var(--bd);">Port: {{u.port or 'Default'}}</div>
+                    </div>
+                    <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Users Section -->
+    <div id="manage" class="content-section">
+            <!-- Server IP Display with Copy Button -->
+    <div class="form-card" style="margin-bottom: 20px;">
+        <h3 class="form-title"><i class="fas fa-server"></i> Server Information</h3>
+        <div style="display: flex; align-items: center; gap: 15px; padding: 15px; background: var(--card); border-radius: var(--radius); border: 1px solid var(--bd);">
+            <div style="flex: 1;">
+                <div style="font-size: 0.9em; color: var(--bd); margin-bottom: 5px;">Server IP Address</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <code style="font-size: 1.2em; font-weight: bold; color: var(--primary-btn); background: var(--bg); padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--bd);" id="serverIpDisplay">
+                        {{ server_ip.strip() if server_ip else 'Loading...' }}
+                    </code>
+                    <button type="button" class="copy-btn" onclick="copyServerIP()" style="padding: 10px 15px;">
+                        <i class="fas fa-copy"></i> Copy IP
+                    </button>
+                </div>
+                <div style="font-size: 0.85em; color: var(--bd); margin-top: 8px;">
+                    <i class="fas fa-info-circle"></i> Use this IP for all VPN connections
+                </div>
+            </div>
+            <div style="font-size: 2em; color: var(--primary-btn);">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+        </div>
+    </div>
+        <div class="form-card">
+            <h3 class="form-title"><i class="fas fa-users"></i> {{t.user_management}}</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="searchUser" placeholder="{{t.user_search}}" style="flex: 1;">
+                <button class="btn btn-primary" onclick="filterUsers()">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="userTable">
+                <thead>
+                    <tr>
+                        <th>{{t.user}}</th>
+                        <th>{{t.password}}</th>
+                        <th>{{t.expires}}</th>
+                        <th>{{t.status}}</th>
+                        <th>{{t.actions}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for u in users %}
+                <tr>
+                    <td><strong>{{u.user}}</strong></td>
+                    <td>
+                        <div class="password-cell">
+                            <code class="password-text">{{u.password}}</code>
+                            <button type="button" class="copy-btn" onclick="copyUserPassword('{{u.password}}', this)">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <span>{{u.expires or '-'}}</span>
+                            {% if u.expires %}
+                            <button class="btn-edit" onclick="openEditExpiryModal('{{u.user}}', '{{u.expires}}')" title="Edit Expiry">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="pill pill-{{u.status|lower}}">{{u.status}}</span>
+                    </td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="action-btn btn-danger" onclick="deleteUser('{{u.user}}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="action-btn btn-primary" onclick="editUser('{{u.user}}')" title="Edit Password">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add User Section -->
+<div id="adduser" class="content-section">
+    <form method="post" action="/add" class="form-card">
+        <h3 class="form-title"><i class="fas fa-user-plus"></i> {{t.add_user}}</h3>
+        {% if msg %}<div class="alert alert-success">{{msg}}</div>{% endif %}
+        {% if err %}<div class="alert alert-error">{{err}}</div>{% endif %}
+        
+        <div style="margin-bottom: 15px;">
+            <button type="button" class="btn btn-primary" onclick="generatePassword()">
+                <i class="fas fa-key"></i> Auto Generate Password
+            </button>
+            <button type="button" class="btn btn-success" onclick="copyPassword()" id="copyBtn">
+                <i class="fas fa-copy"></i> Copy Password
+            </button>
+        </div>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <label>{{t.user}}</label>
+                <input name="user" id="username" placeholder="{{t.user}}" required>
+            </div>
+            <div class="form-group">
+                <label>{{t.password}} <span id="passStrength"></span></label>
+                <div style="display: flex; gap: 10px;">
+                    <input name="password" id="password" placeholder="{{t.password}}" required 
+                           style="flex: 1;" readonly>
+                    <button type="button" class="btn btn-primary" onclick="generatePassword()" 
+                            style="white-space: nowrap;">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>{{t.expires}}</label>
+                <input name="expires" placeholder="2026-01-01">
+            </div>
+            <div class="form-group">
+                <label>{{t.port}}</label>
+                <input name="port" placeholder="Auto" type="number" min="6000" max="19999">
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label>{{t.speed_limit}}</label>
+                <input name="speed_limit" placeholder="0 = Unlimited" type="number">
+            </div>
+            <div class="form-group">
+                <label>{{t.bw_limit}}</label>
+                <input name="bandwidth_limit" placeholder="0 = Unlimited" type="number">
+            </div>
+            <div class="form-group">
+                <label>{{t.max_conn}}</label>
+                <input name="concurrent_conn" value="1" type="number" min="1" max="10">
+            </div>
+            <div class="form-group">
+                <label>Plan Type</label>
+                <select name="plan_type">
+                    <option value="free">Free</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly" selected>Monthly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-block">
+            <i class="fas fa-save"></i> {{t.save_user}}
+        </button>
+    </form>
+</div>
+
+    <!-- Bulk Operations Section -->
+    <div id="bulk" class="content-section">
+        <div class="form-card">
+            <h3 class="form-title"><i class="fas fa-cogs"></i> {{t.bulk_ops}}</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>{{t.actions}}</label>
+                    <select id="bulkAction">
+                        <option value="">{{t.select_action}}</option>
+                        <option value="extend">{{t.extend_exp}}</option>
+                        <option value="suspend">{{t.suspend_users}}</option>
+                        <option value="activate">{{t.activate_users}}</option>
+                        <option value="delete">{{t.delete_users}}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>{{t.user}}</label>
+                    <input type="text" id="bulkUsers" placeholder="user1,user2,user3">
+                </div>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="executeBulkAction()">
+                <i class="fas fa-play"></i> {{t.execute}}
+            </button>
+        </div>
+    </div>
+
+    <!-- Reports Section -->
+    <div id="reports" class="content-section">
+        <div class="form-card">
+            <h3 class="form-title"><i class="fas fa-chart-bar"></i> {{t.reports}}</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>From Date</label>
+                    <input type="date" id="fromDate">
+                </div>
+                <div class="form-group">
+                    <label>To Date</label>
+                    <input type="date" id="toDate">
+                </div>
+                <div class="form-group">
+                    <label>Report Type</label>
+                    <select id="reportType">
+                        <option value="bandwidth">{{t.report_bw}}</option>
+                        <option value="users">{{t.report_users}}</option>
+                        <option value="revenue">{{t.report_revenue}}</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="generateReport()">
+                <i class="fas fa-chart-line"></i> Generate Report
+            </button>
+        </div>
+        <div id="reportResults"></div>
+    </div>
+</div>
+
+<!-- Bottom Navigation Bar -->
+<nav class="bottom-nav">
+    <div class="nav-items">
+        <a href="javascript:void(0)" class="nav-item active" onclick="showSection('home')">
+            <i class="fas fa-home nav-icon"></i>
+            <span class="nav-label">{{t.home}}</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="showSection('manage')">
+            <i class="fas fa-users nav-icon"></i>
+            <span class="nav-label">{{t.manage}}</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="showSection('adduser')">
+            <i class="fas fa-user-plus nav-icon"></i>
+            <span class="nav-label">Add User</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="showSection('bulk')">
+            <i class="fas fa-cogs nav-icon"></i>
+            <span class="nav-label">Bulk</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="showSection('reports')">
+            <i class="fas fa-chart-bar nav-icon"></i>
+            <span class="nav-label">{{t.reports}}</span>
+        </a>
+        <a href="javascript:void(0)" class="nav-item" onclick="openSettings()">
+            <i class="fas fa-cog nav-icon"></i>
+            <span class="nav-label">{{t.settings}}</span>
+        </a>
+    </div>
+</nav>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="settings-modal">
+    <div class="settings-content">
+        <div class="settings-header">
+            <h3><i class="fas fa-cog"></i> {{t.settings}}</h3>
+            <button class="close-settings" onclick="closeSettings()">&times;</button>
+        </div>
+        
+        <div class="setting-group">
+            <label class="setting-label"><i class="fas fa-palette"></i> Theme</label>
+            <div class="theme-options">
+                <div class="theme-option active" data-theme="dark" onclick="changeTheme('dark')">
+                    <i class="fas fa-moon"></i> Dark
+                </div>
+                <div class="theme-option" data-theme="light" onclick="changeTheme('light')">
+                    <i class="fas fa-sun"></i> Light
+                </div>
+            </div>
+        </div>
+        
+        <div class="setting-group">
+            <label class="setting-label"><i class="fas fa-language"></i> Language</label>
+            <div class="lang-options">
+                <div class="lang-option active" data-lang="my" onclick="changeLanguage('my')">
+                    <i class="fas fa-language"></i> မြန်မာ
+                </div>
+                <div class="lang-option" data-lang="en" onclick="changeLanguage('en')">
+                    <i class="fas fa-language"></i> English
+                </div>
+            </div>
+        </div>
+        
+        <div class="setting-group">
+            <a class="btn btn-primary btn-block" href="/api/export/users">
+                <i class="fas fa-download"></i> Export Users CSV
+            </a>
+        </div>
+
+        <div class="setting-group">
+            <a class="btn btn-danger btn-block" href="/logout">
+                <i class="fas fa-sign-out-alt"></i> {{t.logout}}
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Expiry Modal -->
+<div id="editExpiryModal" class="edit-expiry-modal">
+    <div class="edit-expiry-content">
+        <div class="edit-expiry-header">
+            <h3><i class="fas fa-calendar-alt"></i> Edit User Expiry</h3>
+            <button class="close-edit-expiry" onclick="closeEditExpiryModal()">&times;</button>
+        </div>
+        
+        <div id="editExpiryForm">
+            <!-- Form will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+<script>
+// Navigation Functions
+function showSection(sectionId) {
+    // Hide all sections
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    
+    // Remove active class from all nav items
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Show selected section and activate nav item
+    document.getElementById(sectionId).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// Server IP Copy Function
+function copyServerIP() {
+    const serverIpElement = document.getElementById('serverIpDisplay');
+    const serverIp = serverIpElement.textContent.trim();
+    const button = event.currentTarget;
+    const originalText = button.innerHTML;
+    const originalClass = button.className;
+    
+    if (!serverIp || serverIp === 'Loading...') {
+        alert('Server IP not available yet');
+        return;
+    }
+    
+    try {
+        navigator.clipboard.writeText(serverIp.trim()).then(() => {
+            button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            button.className = 'copy-btn copied';
+            
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-copy"></i> Copy IP';
+                button.className = originalClass;
+            }, 2000);
+        });
+    } catch (err) {
+        // Fallback method for older browsers
+        const tempInput = document.createElement('input');
+        tempInput.value = serverIp.trim();
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.className = 'copy-btn copied';
+        
+        setTimeout(() => {
+            button.innerHTML = '<i class="fas fa-copy"></i> Copy IP';
+            button.className = originalClass;
+        }, 2000);
+    }
+}
+
+// Settings Modal Functions
+function openSettings() {
+    document.getElementById('settingsModal').style.display = 'block';
+}
+
+function closeSettings() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
+
+// Theme Functions
+function changeTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    
+    // Update active state
+    document.querySelectorAll('.theme-option').forEach(option => {
+        option.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+}
+
+// Language Functions
+function changeLanguage(lang) {
+    window.location.href = '/set_lang?lang=' + lang;
+}
+
+// Initialize theme from localStorage
+document.addEventListener('DOMContentLoaded', () => {
+    const storedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', storedTheme);
+    
+    // Set active theme option
+    document.querySelectorAll('.theme-option').forEach(option => {
+        option.classList.remove('active');
+        if (option.getAttribute('data-theme') === storedTheme) {
+            option.classList.add('active');
+        }
+    });
+});
+
+// User Management Functions
+function filterUsers() {
+    const search = document.getElementById('searchUser').value.toLowerCase();
+    document.querySelectorAll('#userTable tbody tr').forEach(row => {
+        const user = row.cells[0].textContent.toLowerCase();
+        row.style.display = user.includes(search) ? '' : 'none';
+    });
+}
+
+function deleteUser(username) {
+    const t = {{t|tojson}};
+    if (confirm(t.delete_confirm.replace('{user}', username))) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/delete';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'user';
+        input.value = username;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function editUser(username) {
+    const t = {{t|tojson}};
+    const newPass = prompt(t.password + ' အသစ် ထည့်ပါ (' + username + '):');
+    if (newPass) {
+        fetch('/api/user/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user: username, password: newPass})
+        }).then(r => r.json()).then(data => {
+            alert(data.message); 
+            location.reload();
+        }).catch(e => {
+            alert('Error: ' + e.message);
+        });
+    }
+}
+
+// NEW: User Password Copy Function
+function copyUserPassword(password, button) {
+    const originalText = button.innerHTML;
+    const originalClass = button.className;
+    
+    try {
+        navigator.clipboard.writeText(password).then(() => {
+            button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            button.className = 'copy-btn copied';
+            
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                button.className = originalClass;
+            }, 2000);
+        });
+    } catch (err) {
+        // Fallback method for older browsers
+        const tempInput = document.createElement('input');
+        tempInput.value = password;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        tempInput.setSelectionRange(0, 99999);
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.className = 'copy-btn copied';
+        
+        setTimeout(() => {
+            button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            button.className = originalClass;
+        }, 2000);
+    }
+}
+
+// NEW: Expiry Action Selection Function
+function selectExpiryAction(action) {
+    // Remove active class from all buttons
+    document.querySelectorAll('.expiry-action-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Add active class to selected button
+    if (action === 'reset') {
+        const resetBtn = document.getElementById('actionResetBtn');
+        if (resetBtn) resetBtn.classList.add('active');
+    } else {
+        const renewBtn = document.getElementById('actionRenewBtn');
+        if (renewBtn) renewBtn.classList.add('active');
+    }
+    
+    // Update hidden input value
+    const actionInput = document.getElementById('expiryAction');
+    if (actionInput) actionInput.value = action;
+}
+
+// NEW: Edit Expiry Functions
+function openEditExpiryModal(username, currentExpiry) {
+    const modal = document.getElementById('editExpiryModal');
+    const form = document.getElementById('editExpiryForm');
+    
+    const formHTML = `
+        <div class="form-group">
+            <label><i class="fas fa-user"></i> Username</label>
+            <input type="text" id="editUsername" value="${username}" readonly class="password-text">
+        </div>
+        
+        <div class="form-group">
+            <label><i class="fas fa-calendar-alt"></i> Current Expiry</label>
+            <input type="text" value="${currentExpiry || 'Never'}" readonly class="password-text">
+        </div>
+        
+        <div class="form-group">
+            <label><i class="fas fa-calendar-check"></i> Expiry Action</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                <button type="button" 
+                        class="expiry-action-btn active" 
+                        id="actionResetBtn"
+                        onclick="selectExpiryAction('reset')">
+                    <i class="fas fa-redo"></i>
+                    <div>Reset</div>
+                    <small>Today to New Date</small>
+                </button>
+                <button type="button" 
+                        class="expiry-action-btn" 
+                        id="actionRenewBtn"
+                        onclick="selectExpiryAction('renew')">
+                    <i class="fas fa-calendar-plus"></i>
+                    <div>Renew</div>
+                    <small>Extend from Current Expiry</small>
+                </button>
+            </div>
+            <input type="hidden" id="expiryAction" name="expiryAction" value="reset">
+        </div>
+        
+        <div class="form-group">
+            <label><i class="fas fa-calendar-plus"></i> New Expiry Date</label>
+            <input type="date" id="newExpiryDate" required style="width: 100%; padding: 10px; border: 1px solid var(--bd); border-radius: 4px;">
+        </div>
+        
+        <div class="form-group">
+            <label><i class="fas fa-bolt"></i> Quick Actions</label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 5px;">
+                <button type="button" class="btn-edit" onclick="setExpiryDays(7)">+7 Days</button>
+                <button type="button" class="btn-edit" onclick="setExpiryDays(30)">+30 Days</button>
+                <button type="button" class="btn-edit" onclick="setExpiryDays(365)">+1 Year</button>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="saveExpiryChanges()">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+            <button type="button" class="btn btn-danger" onclick="closeEditExpiryModal()">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    `;
+    
+    form.innerHTML = formHTML;
+    
+    // Set tomorrow as default date for reset action
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    document.getElementById('newExpiryDate').value = tomorrowStr;
+    
+    // Initialize action buttons
+    setTimeout(() => {
+        selectExpiryAction('reset'); // Default to reset
+    }, 10);
+    
+    modal.style.display = 'flex';
+}
+
+function closeEditExpiryModal() {
+    document.getElementById('editExpiryModal').style.display = 'none';
+}
+
+function setExpiryDays(days) {
+    const dateInput = document.getElementById('newExpiryDate');
+    const newDate = new Date();
+    newDate.setDate(newDate.getDate() + days);
+    const formattedDate = newDate.toISOString().split('T')[0];
+    dateInput.value = formattedDate;
+}
+
+function saveExpiryChanges() {
+    const username = document.getElementById('editUsername').value;
+    const newExpiry = document.getElementById('newExpiryDate').value;
+    const actionType = document.getElementById('expiryAction').value;
+    
+    if (!username || !newExpiry) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/edit_expiry';
+    
+    const usernameInput = document.createElement('input');
+    usernameInput.type = 'hidden';
+    usernameInput.name = 'username';
+    usernameInput.value = username;
+    
+    const expiryInput = document.createElement('input');
+    expiryInput.type = 'hidden';
+    expiryInput.name = 'expiry';
+    expiryInput.value = newExpiry;
+    
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action_type';
+    actionInput.value = actionType;
+    
+    form.appendChild(usernameInput);
+    form.appendChild(expiryInput);
+    form.appendChild(actionInput);
+    document.body.appendChild(form);
+    
+    form.submit();
+}
+
+// Bulk Action Function
+function executeBulkAction() {
+    const t = {{t|tojson}};
+    const action = document.getElementById('bulkAction').value;
+    const users = document.getElementById('bulkUsers').value;
+    
+    if (!action || !users) { 
+        alert(t.select_action + ' / ' + t.user + ' လိုအပ်သည်'); 
+        return; 
+    }
+
+    if (action === 'delete' && !confirm(t.delete_users + ' ' + users + ' ကို ဖျက်ရန် သေချာပါသလား?')) return;
+    
+    fetch('/api/bulk', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action, users: users.split(',').map(u => u.trim()).filter(u => u)})
+    }).then(r => r.json()).then(data => {
+        alert(data.message.replace('{action}', action)); 
+        location.reload();
+    }).catch(e => {
+        alert('Error: ' + e.message);
+    });
+}
+
+// Report Generation Function
+function generateReport() {
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+    const type = document.getElementById('reportType').value;
+    const reportResults = document.getElementById('reportResults');
+    const t = {{t|tojson}};
+
+    if (!from || !to) {
+        alert(t.report_range);
+        return;
+    }
+
+    reportResults.innerHTML = '<div class="form-card" style="text-align: center; padding: 30px;"><i class="fas fa-spinner fa-spin"></i> Generating Report...</div>';
+
+    fetch(`/api/reports?from=${from}&to=${to}&type=${type}`)
+        .then(r => r.json())
+        .then(data => {
+            reportResults.innerHTML = `
+                <div class="form-card">
+                    <h3 class="form-title">${type.toUpperCase()} Report (${from} to ${to})</h3>
+                    <pre style="background: var(--bg); padding: 15px; border-radius: var(--radius); border: 1px solid var(--bd); overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        })
+        .catch(e => {
+            reportResults.innerHTML = '<div class="alert alert-error">Error loading report: ' + e.message + '</div>';
+        });
+}
+
+// Password Generation Functions
+function generatePassword() {
+    // Generate UUID-like password (8-4-4-4-12 format)
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const sections = [8, 4, 4, 4, 12];
+    let password = '';
+    
+    sections.forEach((length, index) => {
+        if (index > 0) password += '-';
+        for (let i = 0; i < length; i++) {
+            password += chars[Math.floor(Math.random() * chars.length)];
+        }
+    });
+    
+    document.getElementById('password').value = password;
+    updatePasswordStrength(password);
+}
+
+function updatePasswordStrength(password) {
+    const strengthElem = document.getElementById('passStrength');
+    if (!password) {
+        strengthElem.textContent = '';
+        return;
+    }
+    
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[^a-zA-Z0-9]/.test(password)) strength++;
+    
+    const colors = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#10b981'];
+    const texts = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    
+    strengthElem.innerHTML = `<span style="color: ${colors[strength-1] || '#ef4444'}">${texts[strength-1] || 'Very Weak'}</span>`;
+}
+
+function copyPassword() {
+    const passwordField = document.getElementById('password');
+    if (!passwordField.value) {
+        alert('Please generate a password first!');
+        return;
+    }
+    
+    passwordField.select();
+    passwordField.setSelectionRange(0, 99999);
+    
+    try {
+        navigator.clipboard.writeText(passwordField.value).then(() => {
+            const copyBtn = document.getElementById('copyBtn');
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            copyBtn.style.background = '#10b981';
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.style.background = '';
+            }, 2000);
+        });
+    } catch (err) {
+        // Fallback for older browsers
+        document.execCommand('copy');
+        const copyBtn = document.getElementById('copyBtn');
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        copyBtn.style.background = '#10b981';
+        
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.style.background = '';
+        }, 2000);
+    }
+}
+
+// Auto-generate password when page loads and username is typed
+document.addEventListener('DOMContentLoaded', () => {
+    const usernameField = document.getElementById('username');
+    const passwordField = document.getElementById('password');
+    
+    if (usernameField && passwordField) {
+        // Auto generate when username is typed
+        usernameField.addEventListener('input', function(e) {
+            if (!passwordField.value) {
+                generatePassword();
+            }
+        });
+        
+        // Auto generate on page load if username field has focus
+        if (usernameField === document.activeElement && !passwordField.value) {
+            generatePassword();
+        }
+    }
+});
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('settingsModal');
+    const editModal = document.getElementById('editExpiryModal');
+    
+    if (event.target === modal) {
+        closeSettings();
+    }
+    if (event.target === editModal) {
+        closeEditExpiryModal();
+    }
+}
+</script>
+</body>
+</html>
