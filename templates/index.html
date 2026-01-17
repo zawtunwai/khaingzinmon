@@ -1361,21 +1361,45 @@ function filterUsers() {
     });
 }
 
-function deleteUser(username) {
+function confirmDelete(username) {
     const t = {{t|tojson}};
-    if (confirm(t.delete_confirm.replace('{user}', username))) {
+    const confirmation = confirm(t.delete_confirm.replace('{user}', username));
+    
+    if (confirmation) {
+        // Create and submit form for POST request
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = '/delete';
+        form.style.display = 'none';
         
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'user';
-        input.value = username;
+        const usernameInput = document.createElement('input');
+        usernameInput.type = 'hidden';
+        usernameInput.name = 'user';
+        usernameInput.value = username;
         
-        form.appendChild(input);
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = '{{ session.get("csrf_token", "") }}';
+        
+        form.appendChild(usernameInput);
+        form.appendChild(csrfInput);
         document.body.appendChild(form);
+        
+        // Show loading indicator
+        const button = event.currentTarget;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+        
+        // Submit form
         form.submit();
+        
+        // Revert button after 2 seconds if still on page
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }, 2000);
     }
 }
 
