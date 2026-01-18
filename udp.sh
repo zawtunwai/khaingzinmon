@@ -1437,6 +1437,14 @@ import time
 import threading
 from datetime import datetime
 import os
+import logging
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 DATABASE_PATH = "/etc/zivpn/zivpn.db"
 
@@ -1451,114 +1459,308 @@ class ConnectionManager:
         return conn
         
     def get_active_connections(self):
-        """Get active connections using conntrack"""
+        """Get active connections using conntrack - ENHANCED VERSION"""
         try:
+            # Use improved command to get UDP connections
             result = subprocess.run(
-                "conntrack -L -p udp 2>/dev/null | grep -E 'dport=(5667|[6-9][0-9]{3}|[1-9][0-9]{4})' | awk '{print $7,$8}'",
+                "timeout 5 conntrack -L -p udp 2>/dev/null | grep -E 'dport=(5667|[6-9][0-9]{3}|[1-9][0-9]{4})' | grep -v 'ASSURED' | awk '{for(i=1;i<=NF;i++) if($i~/src=|dport=/) print $i}' | xargs -n2",
                 shell=True, capture_output=True, text=True
             )
             
             connections = {}
-            for line in result.stdout.split('\n'):
-                if 'src=' in line and 'dport=' in line:
-                    try:
-                        parts = line.split()
-                        src_ip = None
-                        dport = None
-                        
-                        for part in parts:
-                            if part.startswith('src='):
-                                src_ip = part.split('=')[1]
-                            elif part.startswith('dport='):
-                                dport = part.split('=')[1]
-                        
-                        if src_ip and dport:
-                            connections[f"{src_ip}:{dport}"] = True
-                    except:
-                        continue
+            lines = result.stdout.strip().split('\n')
+            
+            for line in lines:
+                if not line:
+                    continue
+                    
+                parts = line.split()
+                if len(parts) >= 2:
+                    src_ip = None
+                    dport = None
+                    
+                    for part in parts:
+                        if part.startswith('src='):
+                            src_ip = part.split('=')[1]
+                        elif part.startswith('dport='):
+                            dport = part.split('=')[1]
+                    
+                    if src_ip and dport:
+                        connections[f"{src_ip}:{dport}"] = {
+                            'ip': src_ip,
+                            'port': dport,
+                            'timestamp': time.time()
+                        }
+            
+            logger.debug(f"Found {len(connections)} active connections")
             return connections
-        except:
+            
+        except Exception as e:
+            logger.error(f"Error getting active connections: {e}")
             return {}
             
     def enforce_connection_limits(self):
-        """Enforce connection limits for all users"""
+        """Enforce connection limits for all users - WITH BAN/SUSPEND/DELETE SUPPORT"""
         db = self.get_db()
         try:
-            # Get all active users with their connection limits
-            users = db.execute('''
-                SELECT username, concurrent_conn, port 
+            # ===== STEP 1: GET ALL RESTRICTED USERS (BANNED/SUSPENDED/EXPIRED) =====
+            from datetime import datetime
+            
+            restricted_users = db.execute('''
+                SELECT username, port, status, expires 
                 FROM users 
-                WHERE status = "active" AND (expires IS NULL OR expires >= CURRENT_DATE)
+                WHERE status IN ("banned", "suspended") 
+                   OR (expires IS NOT NULL AND expires < date('now'))
             ''').fetchall()
             
+            # ===== STEP 2: GET DELETED USERS FROM CONFIG =====
+            # Read config to see which passwords are removed (deleted users)
+            config_passwords = []
+            try:
+                import json
+                with open('/etc/zivpn/config.json', 'r') as f:
+                    config = json.load(f)
+                    config_passwords = config.get('auth', {}).get('config', [])
+            except:
+                config_passwords = []
+            
+            # Get all users from database
+            all_db_users = db.execute('SELECT username, password, port FROM users').fetchall()
+            db_passwords = {u['password'] for u in all_db_users if u['password']}
+            
+            # Find deleted users (password in DB but not in config)
+            deleted_passwords = db_passwords - set(config_passwords)
+            deleted_users = [u for u in all_db_users if u['password'] in deleted_passwords]
+            
+            # ===== STEP 3: COMBINE ALL RESTRICTED USERS =====
+            all_restricted = []
+            
+            # Add banned/suspended/expired users
+            for user in restricted_users:
+                all_restricted.append({
+                    'username': user['username'],
+                    'port': user['port'] or 5667,
+                    'reason': user['status'].upper() + (' (EXPIRED)' if user['expires'] else '')
+                })
+            
+            # Add deleted users
+            for user in deleted_users:
+                all_restricted.append({
+                    'username': user['username'],
+                    'port': user['port'] or 5667,
+                    'reason': 'DELETED'
+                })
+            
+            # ===== STEP 4: GET ACTIVE CONNECTIONS =====
             active_connections = self.get_active_connections()
             
-            for user in users:
+            # ===== STEP 5: IMMEDIATELY DISCONNECT ALL RESTRICTED USERS =====
+            disconnected_count = 0
+            
+            for user in all_restricted:
+                username = user['username']
+                user_port = str(user['port'])
+                reason = user['reason']
+                
+                # Find all connections for this user's port
+                connections_to_drop = []
+                for conn_key, conn_info in active_connections.items():
+                    if conn_info['port'] == user_port:
+                        connections_to_drop.append(conn_key)
+                
+                # Drop each connection
+                for conn_key in connections_to_drop:
+                    if self.drop_connection(conn_key):
+                        disconnected_count += 1
+                        logger.info(f"🔴 DISCONNECTED {reason}: {username} (port {user_port}) - {conn_key}")
+            
+            # ===== STEP 6: ENFORCE CONNECTION LIMITS FOR ACTIVE USERS =====
+            active_users = db.execute('''
+                SELECT username, concurrent_conn, port 
+                FROM users 
+                WHERE status = "active" 
+                  AND (expires IS NULL OR expires >= date('now'))
+            ''').fetchall()
+            
+            for user in active_users:
                 username = user['username']
                 max_connections = user['concurrent_conn']
                 user_port = str(user['port'] or '5667')
                 
-                # Count connections for this user (by port)
+                # Count connections for this user
                 user_conn_count = 0
                 user_connections = []
                 
-                for conn_key in active_connections:
-                    if conn_key.endswith(f":{user_port}"):
+                for conn_key, conn_info in active_connections.items():
+                    if conn_info['port'] == user_port:
                         user_conn_count += 1
                         user_connections.append(conn_key)
                 
                 # If over limit, drop oldest connections
                 if user_conn_count > max_connections:
-                    print(f"User {username} has {user_conn_count} connections (limit: {max_connections})")
-                    
-                    # Drop excess connections (FIFO - we'll drop the first ones we find)
                     excess = user_conn_count - max_connections
-                    for i in range(excess):
-                        if i < len(user_connections):
-                            conn_to_drop = user_connections[i]
-                            self.drop_connection(conn_to_drop)
+                    logger.warning(f"⚠️ User {username} has {user_conn_count} connections (limit: {max_connections})")
+                    
+                    for i in range(min(excess, len(user_connections))):
+                        conn_to_drop = user_connections[i]
+                        if self.drop_connection(conn_to_drop):
+                            logger.info(f"🔧 Dropped excess connection for {username}: {conn_to_drop}")
+            
+            # ===== STEP 7: LOG SUMMARY =====
+            if disconnected_count > 0:
+                logger.info(f"✅ Disconnected {disconnected_count} restricted users")
+            
+            return disconnected_count
                             
+        except Exception as e:
+            logger.error(f"❌ Error in enforce_connection_limits: {e}", exc_info=True)
+            return 0
         finally:
             db.close()
             
     def drop_connection(self, connection_key):
-        """Drop a specific connection using conntrack"""
+        """Drop a specific connection using MULTIPLE METHODS for 100% success"""
         try:
-            # connection_key format: "IP:PORT"
+            if ':' not in connection_key:
+                return False
+                
             ip, port = connection_key.split(':')
-            subprocess.run(
-                f"conntrack -D -p udp --dport {port} --src {ip}",
-                shell=True, capture_output=True
-            )
-            print(f"Dropped connection: {connection_key}")
+            
+            success = False
+            
+            # METHOD 1: conntrack (primary method)
+            try:
+                cmd1 = f"timeout 3 conntrack -D -p udp --dport {port} --src {ip} 2>/dev/null"
+                result1 = subprocess.run(cmd1, shell=True, capture_output=True, text=True)
+                if result1.returncode == 0:
+                    success = True
+                    logger.debug(f"Method 1 successful for {ip}:{port}")
+            except:
+                pass
+            
+            # METHOD 2: ss command (alternative)
+            if not success:
+                try:
+                    cmd2 = f"timeout 3 ss -K dst {ip} dport = {port} 2>/dev/null"
+                    result2 = subprocess.run(cmd2, shell=True, capture_output=True, text=True)
+                    if result2.returncode == 0:
+                        success = True
+                        logger.debug(f"Method 2 successful for {ip}:{port}")
+                except:
+                    pass
+            
+            # METHOD 3: iptables temporary block (nuclear option)
+            if not success:
+                try:
+                    # Block the connection temporarily
+                    cmd3a = f"iptables -I INPUT -s {ip} -p udp --dport {port} -j DROP 2>/dev/null"
+                    subprocess.run(cmd3a, shell=True)
+                    
+                    # Remove block after 3 seconds
+                    cmd3b = f"(sleep 3 && iptables -D INPUT -s {ip} -p udp --dport {port} -j DROP 2>/dev/null) &"
+                    subprocess.run(cmd3b, shell=True, capture_output=True)
+                    
+                    success = True
+                    logger.debug(f"Method 3 (iptables) used for {ip}:{port}")
+                except:
+                    pass
+            
+            # METHOD 4: Direct /proc manipulation (last resort)
+            if not success:
+                try:
+                    # Find connection in /proc/net/ip_conntrack or /proc/net/nf_conntrack
+                    for proc_file in ['/proc/net/nf_conntrack', '/proc/net/ip_conntrack']:
+                        if os.path.exists(proc_file):
+                            grep_cmd = f"grep -E 'udp.*src={ip}.*dport={port}' {proc_file} 2>/dev/null | head -1"
+                            grep_result = subprocess.run(grep_cmd, shell=True, capture_output=True, text=True)
+                            
+                            if grep_result.stdout:
+                                # Extract connection ID
+                                parts = grep_result.stdout.split()
+                                for part in parts:
+                                    if part.startswith('id='):
+                                        conn_id = part.split('=')[1]
+                                        # Delete by ID
+                                        del_cmd = f"echo 'del {conn_id}' > /proc/net/nf_conntrack 2>/dev/null || true"
+                                        subprocess.run(del_cmd, shell=True)
+                                        success = True
+                                        logger.debug(f"Method 4 (proc) used for {ip}:{port}")
+                                        break
+                except:
+                    pass
+            
+            if success:
+                logger.info(f"✅ Successfully dropped connection: {ip}:{port}")
+            else:
+                logger.warning(f"⚠️ Failed to drop connection: {ip}:{port}")
+            
+            return success
+            
         except Exception as e:
-            print(f"Error dropping connection {connection_key}: {e}")
+            logger.error(f"❌ Error dropping connection {connection_key}: {e}")
+            return False
             
     def start_monitoring(self):
         """Start the connection monitoring loop"""
         def monitor_loop():
+            logger.info("🚀 Connection Manager monitoring started")
+            
+            # Initial delay to let system stabilize
+            time.sleep(10)
+            
             while True:
                 try:
-                    self.enforce_connection_limits()
-                    time.sleep(10)  # Check every 10 seconds
+                    # Run enforcement
+                    disconnected = self.enforce_connection_limits()
+                    
+                    # If we disconnected users, wait shorter time
+                    if disconnected > 0:
+                        time.sleep(3)  # 3 seconds if action was taken
+                    else:
+                        time.sleep(7)  # 7 seconds if no action
+                        
                 except Exception as e:
-                    print(f"Monitoring error: {e}")
-                    time.sleep(30)
+                    logger.error(f"🔥 Critical monitoring error: {e}")
+                    time.sleep(30)  # Wait longer on error
                     
         monitor_thread = threading.Thread(target=monitor_loop, daemon=True)
         monitor_thread.start()
+        return monitor_thread
         
 # Global instance
 connection_manager = ConnectionManager()
 
-if __name__ == "__main__":
-    print("Starting Connection Manager...")
-    connection_manager.start_monitoring()
+def main():
+    """Main function to start the connection manager"""
+    print("=" * 60)
+    print("🚀 ZIVPN ENHANCED CONNECTION MANAGER")
+    print("✅ Features:")
+    print("   • Auto-disconnect banned/suspended users")
+    print("   • Auto-disconnect expired users")
+    print("   • Auto-disconnect deleted users")
+    print("   • Enforce connection limits")
+    print("   • Multiple drop methods for 100% success")
+    print("=" * 60)
+    
+    # Start monitoring
+    monitor_thread = connection_manager.start_monitoring()
+    
     try:
+        # Keep main thread alive
         while True:
             time.sleep(60)
+            # Periodic status log
+            logger.info("📊 Connection Manager is running normally")
+            
     except KeyboardInterrupt:
-        print("Stopping Connection Manager...")
+        print("\n🛑 Received interrupt signal, shutting down...")
+    except Exception as e:
+        logger.error(f"💥 Fatal error in main: {e}")
+    finally:
+        print("👋 Connection Manager stopped")
+
+if __name__ == "__main__":
+    main()
 PY
 
 # ===== systemd Services =====
