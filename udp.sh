@@ -1612,9 +1612,16 @@ IFACE=$(ip -4 route ls | awk '/default/ {print $5; exit}')
 
 echo -e "${G}✅ System check completed${Z}"
 
-# ===== CRITICAL: DO NOT INSTALL OR MODIFY UFW =====
-echo -e "${Y}⚠️  NOT installing or configuring UFW${Z}"
-echo -e "${Y}⚠️  Preserving existing firewall configuration${Z}"
+# ===== UFW FORWARD POLICY FIX =====
+fix_ufw_forward_policy() {
+    if command -v ufw >/dev/null 2>&1; then
+        echo -e "${Y}🔧 UFW detected - Fixing forward policy...${Z}"
+        sed -i 's/DEFAULT_FORWARD_POLICY="DENY"/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw 2>/dev/null || true
+        ufw reload >/dev/null 2>&1 || true
+        echo -e "${G}✅ UFW forward policy fixed${Z}"
+    fi
+}
+fix_ufw_forward_policy
 
 # ===== ZIVPN iptables Rules ONLY =====
 echo -e "${G}✅ Adding ZIVPN iptables rules...${Z}"
