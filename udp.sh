@@ -1625,36 +1625,11 @@ fix_ufw_forward_policy() {
 }
 fix_ufw_forward_policy
 
-# ===== ZIVPN iptables Rules ONLY =====
-echo -e "${G}✅ Adding ZIVPN iptables rules...${Z}"
-
-# Check if ZIVPN rule already exists
-ZIVPN_RULE_EXISTS=$(iptables -t nat -L PREROUTING -n 2>/dev/null | grep -c "dpts:6000:19999 to::5667" || true)
-
-if [ "$ZIVPN_RULE_EXISTS" -eq 0 ]; then
-    # Add ZIVPN UDP Redirect rule
-    iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
-    echo -e "${G}✅ Added ZIVPN UDP redirect rule${Z}"
-else
-    echo -e "${Y}⚠️  ZIVPN rule already exists, skipping${Z}"
-fi
-
-# Check if MASQUERADE rule already exists
-MASQ_RULE_EXISTS=$(iptables -t nat -L POSTROUTING -n 2>/dev/null | grep -c "MASQUERADE.*$IFACE" || true)
-
-if [ "$MASQ_RULE_EXISTS" -eq 0 ]; then
-    # Add MASQUERADE rule
-    iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
-    echo -e "${G}✅ Added MASQUERADE rule${Z}"
-else
-    echo -e "${Y}⚠️  MASQUERADE rule already exists, skipping${Z}"
-fi
-
-# ===== Save iptables rules (if iptables-persistent exists) =====
-if command -v iptables-save >/dev/null 2>&1 && [ -d /etc/iptables ]; then
-    iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
-    echo -e "${G}✅ Saved iptables rules${Z}"
-fi
+# DNAT Rules
+iptables -t nat -F
+iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
+iptables -t nat -A PREROUTING -i "$IFACE" -p udp --dport 5667 -j DNAT --to-destination :5667
+iptables -t nat -A POSTROUTING -o "$IFACE" -j MASQUERADE
 
 echo -e "${G}✅ ZIVPN network setup completed successfully${Z}"
 echo -e "${Y}📌 All existing services (SlowDNS, SSH Proxy, Xray/V2ray) are untouched${Z}"
